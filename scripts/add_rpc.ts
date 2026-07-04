@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString = 'postgresql://postgres:Junaidkhan7798@[2406:da1c:4c7:f801::b6f]:5432/postgres';
+const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   console.error('Missing DATABASE_URL in .env');

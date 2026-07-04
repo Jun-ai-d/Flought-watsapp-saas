@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { getBSPProvider } from '../bsp/providerFactory';
 import { supabaseAdmin } from '../lib/supabase';
+import { requireTenantMember } from '../middleware/requireTenantMember';
 
 const router = Router();
 
 // Endpoint for frontend to send replies
-router.post('/send', async (req, res) => {
+router.post('/send', requireTenantMember, async (req, res) => {
   try {
     const { tenantId, conversationId, text, providerName = 'gupshup' } = req.body;
 

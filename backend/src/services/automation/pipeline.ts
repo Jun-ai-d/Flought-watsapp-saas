@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../../lib/supabase';
-import { isExplicitHumanRequest, triggerHandover } from './handover';
+import { checkHumanIntent, triggerHandover } from './handover';
 import { matchFAQ } from './faqMatcher';
 import { retrieveRelevantChunks } from '../kb/retrieval';
 import { generateRAGResponse } from '../llm/generator';
@@ -15,8 +15,8 @@ export async function processAutomationPipeline(
   console.log(`[Pipeline] Starting for conv ${conversationId}`);
 
   // 1. Handover Check First
-  if (isExplicitHumanRequest(messageText)) {
-    await triggerHandover(conversationId, 'explicit_request');
+  if (checkHumanIntent(messageText)) {
+    await triggerHandover(tenantId, conversationId, 'explicit_request');
     return;
   }
 
@@ -33,7 +33,7 @@ export async function processAutomationPipeline(
   if (chunks.length === 0) {
     console.log(`[Pipeline] No RAG chunks found.`);
     // Trigger handover per TRD §3.2 (low retrieval confidence / no FAQ + no RAG)
-    await triggerHandover(conversationId, 'low_confidence_retrieval');
+    await triggerHandover(tenantId, conversationId, 'low_confidence_retrieval');
     return;
   }
 
@@ -43,11 +43,11 @@ export async function processAutomationPipeline(
 
   const llmResponse = await generateRAGResponse(messageText, chunks, businessName);
 
-  if (llmResponse.confidence === 'low') {
+  if (llmResponse.confidence !== 'high') {
     console.log(`[Pipeline] LLM returned low confidence.`);
     // Still send the apology message if it generated one, but also trigger handover
     await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id));
-    await triggerHandover(conversationId, 'low_confidence_generation');
+    await triggerHandover(tenantId, conversationId, 'low_confidence_generation');
     return;
   }
 

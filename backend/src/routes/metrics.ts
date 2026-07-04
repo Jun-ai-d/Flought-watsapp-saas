@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
+import { requireTenantMember } from '../middleware/requireTenantMember';
 
 const router = Router();
 
-router.get('/:tenantId', async (req, res) => {
+router.get('/:tenantId', requireTenantMember, async (req, res) => {
   const { tenantId } = req.params;
 
   try {

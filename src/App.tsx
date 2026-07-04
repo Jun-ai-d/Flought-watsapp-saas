@@ -15,7 +15,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 
-import './App.css';
+
 
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-100">

@@ -11,13 +11,43 @@ export class GupshupProvider implements BSPProvider {
   }): Promise<SendResult> {
     const { to, content, providerConfig } = params;
     
-    // In a real implementation, we would make a fetch() call to Gupshup's API:
-    // https://api.gupshup.io/wa/api/v1/msg
-    
     console.log(`[Gupshup] Sending session message to ${to}`);
-    
+    const apiKey = providerConfig.gupshup_api_key || process.env.GUPSHUP_API_KEY;
+    const appId = providerConfig.gupshup_app_id || process.env.GUPSHUP_APP_ID;
+
+    if (!apiKey || !appId) {
+      console.warn(`[Gupshup] Missing API credentials for tenant ${tenantId}. Faking success for local dev.`);
+      return {
+        bspMessageId: `gs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        status: 'submitted'
+      };
+    }
+
+    const response = await fetch(`https://api.gupshup.io/wa/api/v1/msg`, {
+      method: 'POST',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': apiKey
+      },
+      body: new URLSearchParams({
+        channel: 'whatsapp',
+        source: appId,
+        destination: to,
+        'src.name': appId,
+        message: JSON.stringify(content)
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gupshup API Error: ${response.status} ${errorText}`);
+    }
+
+    const responseData = await response.json() as any;
+
     return {
-      bspMessageId: `gs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      bspMessageId: responseData?.messageId || `gs-${Date.now()}`,
       status: 'submitted'
     };
   }

@@ -5,7 +5,7 @@ const openai = new OpenAI();
 
 export async function getEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
-    model: 'openai/text-embedding-3-small',
+    model: 'text-embedding-3-small',
     input: text.replace(/\n/g, ' '),
   });
   return response.data[0].embedding;

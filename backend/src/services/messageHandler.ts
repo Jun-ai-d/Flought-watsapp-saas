@@ -10,6 +10,7 @@ import { getBSPProvider } from '../bsp/providerFactory';
 import { supabaseAdmin } from '../lib/supabase';
 import { NormalizedInboundMessage } from '../bsp/BSPProvider';
 import { processAutomationPipeline } from './automation/pipeline';
+import { transcribeAudio } from './llm/stt';
 
 /**
  * Parses the raw payload from the BSP and routes it to the specific tenant processing pipeline.
@@ -54,9 +55,6 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   
   if (match) {
     tenantId = match.tenant_id;
-  } else if (configs && configs.length > 0) {
-    // Fallback: For local MVP testing, if no match is found, assign to the first available tenant.
-    tenantId = configs[0].tenant_id; 
   }
 
   if (!tenantId) {
@@ -106,6 +104,15 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
       .eq('id', conversationId);
   }
 
+  let messageContent = msg.text || '';
+  let transcript = '';
+
+  if (msg.type === 'audio' && msg.mediaUrl) {
+    console.log(`[STT] Transcribing voice note for ${msg.waMessageId}`);
+    transcript = await transcribeAudio(msg.mediaUrl);
+    messageContent = transcript;
+  }
+
   // Step 3: Message Persistence and Deduplication
   // Insert the raw message into the database. The `wa_message_id` has a UNIQUE constraint in Postgres.
   const { error: msgInsertError } = await supabaseAdmin
@@ -115,8 +122,9 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
       tenant_id: tenantId,
       direction: 'inbound',
       message_type: msg.type,
-      content: msg.text || '',
+      content: messageContent,
       media_url: msg.mediaUrl,
+      transcript: transcript || null,
       wa_message_id: msg.waMessageId,
       sender: 'customer'
     });
@@ -137,10 +145,10 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   // PRD CRITICAL RULE 1: A bot MUST NEVER send an automated message while a conversation is in human handover state.
   const currentStatus = conv?.status || 'bot';
   
-  if (msg.type === 'text' && msg.text && currentStatus === 'bot') {
-    // If it's a text message and the bot is active, route to the AI generator.
+  if (messageContent && currentStatus === 'bot') {
+    // If it's a text/audio message and the bot is active, route to the AI generator.
     // This is executed asynchronously (.catch) so we can instantly return a 200 OK to the webhook provider.
-    processAutomationPipeline(tenantId, conversationId, msg.text, msg.fromPhone, providerName).catch(e => {
+    processAutomationPipeline(tenantId, conversationId, messageContent, msg.fromPhone, providerName).catch(e => {
       console.error('Error in automation pipeline:', e);
     });
   } else if (currentStatus !== 'bot') {
