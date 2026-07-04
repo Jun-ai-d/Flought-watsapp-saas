@@ -209,6 +209,7 @@ const Settings: React.FC = () => {
                       value={bspForm.provider}
                       onChange={e => setBspForm({...bspForm, provider: e.target.value})}
                     >
+                      <option value="meta">Meta Cloud API</option>
                       <option value="gupshup">Gupshup</option>
                       <option value="interakt">Interakt</option>
                       <option value="wati">WATI</option>
