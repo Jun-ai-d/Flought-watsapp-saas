@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Download } from 'lucide-react';
+import { CreditCard, Download, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import './Billing.css';
 
 const Billing: React.FC = () => {
-  const { tenant } = useAuth();
+  const { tenant, session } = useAuth();
   const [sub, setSub] = useState<any>(null);
   const [usage, setUsage] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     if (!tenant) return;
@@ -16,12 +18,11 @@ const Billing: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       
-      // Fetch subscription and usage in parallel
       const billingPeriod = new Date();
       billingPeriod.setDate(1);
       const periodStr = billingPeriod.toISOString().split('T')[0];
       
-      const [subRes, usageRes] = await Promise.all([
+      const [subRes, usageRes, invoiceRes] = await Promise.all([
         supabase
           .from('subscriptions')
           .select('*')
@@ -33,17 +34,52 @@ const Billing: React.FC = () => {
           .select('*')
           .eq('tenant_id', tenant.id)
           .eq('billing_period', periodStr)
-          .single()
+          .single(),
+        supabase
+          .from('invoices')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .order('created_at', { ascending: false })
       ]);
       
       if (!subRes.error && subRes.data) setSub(subRes.data);
       if (!usageRes.error && usageRes.data) setUsage(usageRes.data);
+      if (!invoiceRes.error && invoiceRes.data) setInvoices(invoiceRes.data);
       
       setLoading(false);
     };
     
     fetchData();
   }, [tenant]);
+
+  const handleCheckout = async () => {
+    if (!tenant || !session) return;
+    setCheckoutLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/billing/create-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ tenantId: tenant.id })
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate checkout link');
+      const data = await res.json();
+      
+      if (data.short_url) {
+        window.location.href = data.short_url;
+      } else {
+        alert('Could not initialize Razorpay checkout. Please check keys.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error connecting to billing service.');
+    }
+    setCheckoutLoading(false);
+  };
 
   const messagesSent = usage?.messages_sent || 0;
   const llmCalls = usage?.llm_calls || 0;
@@ -61,10 +97,14 @@ const Billing: React.FC = () => {
           <p className="text-gray">Monitor your current billing cycle usage and overage limits.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-          <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} disabled>
-            <CreditCard size={18} /> Update Payment Method
+          <button 
+            className="btn btn-primary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} 
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
+          >
+            <CreditCard size={18} /> {checkoutLoading ? 'Processing...' : 'Update Payment Method'}
           </button>
-          <span className="text-gray" style={{ fontSize: '0.85rem' }}>* Payments via Razorpay coming soon</span>
         </div>
       </div>
 
@@ -121,7 +161,12 @@ const Billing: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="text-gray">No active subscription found. Please contact support.</div>
+            <div className="text-gray">
+              <p style={{ marginBottom: '1rem' }}>No active subscription found. Please subscribe to unlock outbound messaging.</p>
+              <button className="btn btn-primary" onClick={handleCheckout} disabled={checkoutLoading}>
+                Subscribe Now
+              </button>
+            </div>
           )}
         </div>
 
@@ -139,14 +184,31 @@ const Billing: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Jul 01, 2026</td>
-                <td className="font-record">₹{sub?.price_inr?.toLocaleString() || '0'}</td>
-                <td><span className="status-badge approved">PAID</span></td>
-                <td>
-                  <button className="icon-btn text-indigo" disabled><Download size={18} /></button>
-                </td>
-              </tr>
+              {invoices.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-gray text-center py-4">No payment history found.</td>
+                </tr>
+              )}
+              {invoices.map((inv) => (
+                <tr key={inv.id}>
+                  <td>{new Date(inv.created_at).toLocaleDateString()}</td>
+                  <td className="font-record">₹{inv.amount_inr?.toLocaleString() || '0'}</td>
+                  <td>
+                    <span className={`status-badge ${inv.status === 'paid' ? 'approved' : 'rejected'}`}>
+                      {inv.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    {inv.invoice_url ? (
+                      <a href={inv.invoice_url} target="_blank" rel="noreferrer" className="icon-btn text-indigo">
+                        <ExternalLink size={18} />
+                      </a>
+                    ) : (
+                      <span className="text-gray">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

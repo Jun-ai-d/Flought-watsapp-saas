@@ -5,18 +5,19 @@ import outboundRouter from './routes/outbound';
 import metricsRoutes from './routes/metrics';
 import adminRoutes from './routes/admin';
 import bspRoutes from './routes/bsp';
+import billingRoutes from './routes/billing';
 
 import rateLimit from 'express-rate-limit';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:8923' }));
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
 app.use(express.json());
 
 // Rate Limiting for webhooks (100 reqs / 15 mins)
 const webhookLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 1 * 60 * 1000,
   max: 100,
   message: 'Too many requests to webhook endpoint, please try again later.'
 });
@@ -24,10 +25,11 @@ const webhookLimiter = rateLimit({
 
 // Routes
 app.use('/webhooks', webhookLimiter, webhooksRouter);
-app.use('/api', outboundRouter);
+app.use('/api/outbound', outboundRouter);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/bsp', bspRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
