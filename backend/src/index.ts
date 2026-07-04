@@ -6,6 +6,7 @@ import metricsRoutes from './routes/metrics';
 import adminRoutes from './routes/admin';
 import bspRoutes from './routes/bsp';
 import billingRoutes from './routes/billing';
+import templatesRoutes from './routes/templates';
 
 import rateLimit from 'express-rate-limit';
 
@@ -30,6 +31,7 @@ app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/bsp', bspRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/templates', templatesRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

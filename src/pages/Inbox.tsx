@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, MessageSquare, AlertCircle, Bot, User } from 'lucide-react';
+import { Search, MessageSquare, AlertCircle, Bot, User, Send, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -23,33 +23,46 @@ const Inbox: React.FC = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
+  
+  // Template state
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [templateParams, setTemplateParams] = useState<string[]>([]);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
 
-  // 1. Initial Fetch: Conversations List
+  // 1. Initial Fetch: Conversations List and Templates
   useEffect(() => {
     if (!tenant) return;
     
-    const fetchConversations = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      let query = supabase
-        .from('conversations')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .order('last_message_at', { ascending: false })
-        .limit(50);
-        
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
       
-      const { data, error } = await query;
-      if (!error && data) {
-        setConversations(data);
+      const [convRes, tempRes] = await Promise.all([
+        supabase
+          .from('conversations')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .order('last_message_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('message_templates')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .eq('status', 'approved')
+      ]);
+        
+      if (!convRes.error && convRes.data) {
+        setConversations(convRes.data);
+      }
+      if (!tempRes.error && tempRes.data) {
+        setTemplates(tempRes.data);
       }
       setLoading(false);
     };
     
-    fetchConversations();
-  }, [tenant, filter]);
+    fetchData();
+  }, [tenant]);
 
   // 2. Initial Fetch: Messages for the selected conversation
   useEffect(() => {
@@ -178,14 +191,6 @@ const Inbox: React.FC = () => {
       }
 
       setReplyText('');
-      setMessages([...messages, { 
-        id: crypto.randomUUID(), 
-        direction: 'outbound', 
-        message_type: 'text',
-        content: replyText,
-        sender: 'agent',
-        created_at: new Date().toISOString()
-      }]);
     } catch (error) {
       console.error('Error sending message via API:', error);
       alert('Failed to send message. Is the backend server running?');
@@ -367,11 +372,10 @@ const Inbox: React.FC = () => {
                 ></textarea>
                 <div className="flex justify-between items-center">
                   <button 
-                    className="px-4 py-2 font-medium text-[#666666] hover:text-[#1A1A1A] disabled:opacity-50 transition-colors" 
-                    disabled
-                    title="Template messaging coming soon"
+                    className="px-4 py-2 font-medium text-[#666666] hover:text-[#1A1A1A] transition-colors flex items-center" 
+                    onClick={() => setShowTemplateModal(true)}
                   >
-                    Use Template
+                    <Send size={16} className="mr-2" /> Use Template
                   </button>
                   <button 
                     className="px-6 py-2 bg-[#1A1A1A] text-white font-bold hover:bg-black disabled:opacity-50 transition-colors border-2 border-[#1A1A1A] flex items-center" 
@@ -394,6 +398,82 @@ const Inbox: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white border-2 border-[#1A1A1A] p-6 w-[500px] shadow-[8px_8px_0px_0px_rgba(26,26,26,1)]">
+            <div className="flex justify-between items-center mb-6 border-b-2 border-[#E5E5E5] pb-4">
+              <h2 className="text-xl font-display font-bold text-[#1A1A1A]">Send Template</h2>
+              <button onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setTemplateParams([]); }} className="text-[#666666] hover:text-[#1A1A1A]">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSendTemplate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-[#1A1A1A] mb-1">Select Template</label>
+                <select 
+                  className="w-full p-2 border-2 border-[#E5E5E5] focus:border-[#1A1A1A] focus:outline-none transition-colors"
+                  onChange={(e) => {
+                    const t = templates.find(t => t.id === e.target.value);
+                    setSelectedTemplate(t);
+                    if (t) {
+                      const paramMatches = t.body.match(/\{\{(\d+)\}\}/g);
+                      const paramCount = paramMatches ? new Set(paramMatches).size : 0;
+                      setTemplateParams(new Array(paramCount).fill(''));
+                    } else {
+                      setTemplateParams([]);
+                    }
+                  }}
+                  value={selectedTemplate?.id || ''}
+                >
+                  <option value="">-- Choose a template --</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                {templates.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">No approved templates found. Create one in the Template Manager.</p>
+                )}
+              </div>
+
+              {selectedTemplate && (
+                <>
+                  <div className="p-3 bg-gray-50 border border-gray-200 text-sm font-mono whitespace-pre-wrap">
+                    {selectedTemplate.body}
+                  </div>
+                  
+                  {templateParams.map((param, index) => (
+                    <div key={index}>
+                      <label className="block text-sm font-bold text-[#1A1A1A] mb-1">Variable {'{{'}{index + 1}{'}}'}</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={param}
+                        onChange={(e) => {
+                          const newParams = [...templateParams];
+                          newParams[index] = e.target.value;
+                          setTemplateParams(newParams);
+                        }}
+                        className="w-full p-2 border-2 border-[#E5E5E5] focus:border-[#1A1A1A] focus:outline-none transition-colors"
+                      />
+                    </div>
+                  ))}
+                  
+                  <button 
+                    type="submit" 
+                    disabled={sendingTemplate}
+                    className="w-full bg-[#1A1A1A] text-white font-bold py-3 hover:bg-[#C1440E] transition-colors border-2 border-transparent disabled:opacity-50 mt-4"
+                  >
+                    {sendingTemplate ? 'Sending...' : 'Send Template'}
+                  </button>
+                </>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

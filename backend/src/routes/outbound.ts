@@ -87,4 +87,73 @@ router.post('/send', requireTenantMember, async (req, res) => {
   }
 });
 
+router.post('/send-template', requireTenantMember, async (req, res) => {
+  try {
+    const { tenantId, conversationId, templateId, templateParams, providerName = 'meta' } = req.body;
+
+    if (!tenantId || !conversationId || !templateId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const { data: conv, error: convError } = await supabaseAdmin
+      .from('conversations')
+      .select('customer_phone')
+      .eq('id', conversationId)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (convError || !conv) return res.status(404).json({ error: 'Conversation not found' });
+
+    const { data: template } = await supabaseAdmin
+      .from('message_templates')
+      .select('*')
+      .eq('id', templateId)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+    if (template.status !== 'approved') return res.status(400).json({ error: 'Template is not approved' });
+
+    const { data: config } = await supabaseAdmin
+      .from('tenant_bsp_config')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .single(); // Fallback if providerName isn't matched perfectly
+      
+    const activeProvider = config?.bsp_provider || providerName;
+    const provider = getBSPProvider(activeProvider);
+
+    const sendResult = await provider.sendTemplateMessage({
+      tenantId,
+      to: conv.customer_phone,
+      templateId: template.bsp_template_id || template.name,
+      category: template.category as any,
+      templateParams: templateParams || [],
+      providerConfig: config || {}
+    });
+
+    let renderedBody = template.body;
+    (templateParams || []).forEach((param: string, index: number) => {
+      renderedBody = renderedBody.replace(`{{${index + 1}}}`, param);
+    });
+
+    await supabaseAdmin.from('messages').insert({
+      conversation_id: conversationId,
+      tenant_id: tenantId,
+      direction: 'outbound',
+      message_type: 'template',
+      content: renderedBody,
+      sender: 'agent',
+      wa_message_id: sendResult.bspMessageId
+    });
+
+    await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
+
+    res.json({ success: true, result: sendResult });
+  } catch (error: any) {
+    console.error('Error sending template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

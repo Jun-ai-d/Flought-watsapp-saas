@@ -41,6 +41,17 @@ export interface BSPProvider {
   }): Promise<SendResult>;
 
   /**
+   * Submit a new template to the BSP for approval
+   */
+  submitTemplate(params: {
+    tenantId: string;
+    name: string;
+    category: 'marketing' | 'utility' | 'authentication';
+    body: string;
+    providerConfig: Record<string, any>;
+  }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }>;
+
+  /**
    * Send a pre-approved template message
    */
   sendTemplateMessage(params: {

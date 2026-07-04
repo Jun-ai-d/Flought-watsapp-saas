@@ -52,6 +52,20 @@ export class GupshupProvider implements BSPProvider {
     };
   }
 
+  async submitTemplate(params: {
+    tenantId: string;
+    name: string;
+    category: 'marketing' | 'utility' | 'authentication';
+    body: string;
+    providerConfig: Record<string, any>;
+  }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
+    console.log(`[Gupshup] Simulating template submission: ${params.name}`);
+    return {
+      bspTemplateId: `gs-tpl-${Date.now()}`,
+      status: 'approved' 
+    };
+  }
+
   async sendTemplateMessage(params: {
     tenantId: string;
     to: string;

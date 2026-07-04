@@ -62,6 +62,21 @@ export class MetaProvider implements BSPProvider {
     };
   }
 
+  async submitTemplate(params: {
+    tenantId: string;
+    name: string;
+    category: 'marketing' | 'utility' | 'authentication';
+    body: string;
+    providerConfig: Record<string, any>;
+  }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
+    console.log(`[Meta] Simulating template submission: ${params.name}`);
+    // In production, call POST to graph.facebook.com/v19.0/{WABA_ID}/message_templates
+    return {
+      bspTemplateId: `meta-tpl-${Date.now()}`,
+      status: 'approved' // Automatically approve for simulation
+    };
+  }
+
   async sendTemplateMessage(params: {
     tenantId: string;
     to: string;
