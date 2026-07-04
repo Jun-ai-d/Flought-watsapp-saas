@@ -1,14 +1,27 @@
 import { BSPProvider } from './BSPProvider';
 import { GupshupProvider } from './GupshupProvider';
 
+const providerInstances = new Map<string, BSPProvider>();
+
 export function getBSPProvider(providerName: string): BSPProvider {
-  switch (providerName.toLowerCase()) {
+  const normalizedName = providerName.toLowerCase();
+  
+  if (providerInstances.has(normalizedName)) {
+    return providerInstances.get(normalizedName)!;
+  }
+
+  let provider: BSPProvider;
+  switch (normalizedName) {
     case 'gupshup':
-      return new GupshupProvider();
+      provider = new GupshupProvider();
+      break;
     // Future providers
-    // case 'twilio': return new TwilioProvider();
-    // case 'telnyx': return new TelnyxProvider();
+    // case 'twilio': provider = new TwilioProvider(); break;
+    // case 'telnyx': provider = new TelnyxProvider(); break;
     default:
       throw new Error(`Unknown BSP provider: ${providerName}`);
   }
+  
+  providerInstances.set(normalizedName, provider);
+  return provider;
 }

@@ -16,6 +16,11 @@ import { RetrievedChunk } from '../kb/retrieval';
 // by setting OPENAI_BASE_URL="https://openrouter.ai/api/v1" in .env
 const openai = new OpenAI();
 
+export interface ChatMessage {
+  direction: 'inbound' | 'outbound';
+  content: string;
+}
+
 export interface LLMResponse {
   content: string;
   confidence: 'high' | 'low';
@@ -26,10 +31,19 @@ export interface LLMResponse {
  * @param query The customer's raw WhatsApp message
  * @param chunks The top-K similar chunks retrieved from Postgres
  * @param tenantBusinessName The name of the business to give the AI context
+ * @param history The last N messages in the conversation for contextual memory
  */
-export async function generateRAGResponse(query: string, chunks: RetrievedChunk[], tenantBusinessName: string): Promise<LLMResponse> {
+export async function generateRAGResponse(query: string, chunks: RetrievedChunk[], tenantBusinessName: string, history: ChatMessage[] = []): Promise<LLMResponse> {
   // Join the retrieved chunks into a single text block to inject into the prompt
   const contextText = chunks.map(c => c.content).join('\n\n');
+  
+  // Format the conversation history for the LLM
+  let historyText = "No previous conversation.";
+  if (history.length > 0) {
+    historyText = history.map(msg => 
+      msg.direction === 'inbound' ? `Customer: ${msg.content}` : `Bot: ${msg.content}`
+    ).join('\n');
+  }
   
   // This System Prompt establishes the strict RAG boundaries.
   // Rule #2 prevents hallucination by explicitly ordering the AI to fail gracefully.
@@ -40,10 +54,15 @@ Your goal is to answer the customer's query using ONLY the provided knowledge ba
 ${contextText}
 </knowledge_base>
 
+<conversation_history>
+${historyText}
+</conversation_history>
+
 Rules:
 1. Be concise, friendly, and conversational (WhatsApp style).
 2. Do NOT hallucinate. If the answer is not contained in the <knowledge_base> context, you must respond with EXACTLY "I'm sorry, I don't have that information. Let me transfer you to a human agent."
 3. Do NOT mention that you are an AI or reading from a context block.
+4. Use the <conversation_history> to understand what the customer is referring to if they use pronouns like "it" or "that".
 
 You must return a JSON object with two fields:
 - "content": Your response text for the customer.

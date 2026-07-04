@@ -5,9 +5,10 @@ import { Users, MessageSquare, Clock, ArrowUpRight, ArrowDownRight, Bot } from '
 
 interface DashboardMetrics {
   totalMessages: number;
-  activeConversations: number;
-  aiHandledPercentage: number;
-  averageResolutionTime: string;
+  botHandledCount: number;
+  faqMatchTotal: number;
+  handoverCount: number;
+  recentHandovers?: any[];
 }
 
 const Dashboard: React.FC = () => {
@@ -48,40 +49,44 @@ const Dashboard: React.FC = () => {
 
   const defaultMetrics: DashboardMetrics = {
     totalMessages: 0,
-    activeConversations: 0,
-    aiHandledPercentage: 0,
-    averageResolutionTime: '0m',
+    botHandledCount: 0,
+    faqMatchTotal: 0,
+    handoverCount: 0,
   };
 
   const displayMetrics = metrics || defaultMetrics;
+  
+  const aiHandledRate = displayMetrics.totalMessages > 0 
+    ? Math.round((displayMetrics.botHandledCount / displayMetrics.totalMessages) * 100) 
+    : 0;
 
   const statCards = [
     {
-      title: "Active Conversations",
-      value: displayMetrics.activeConversations.toString(),
-      change: "+12%",
+      title: "Active Handovers",
+      value: (displayMetrics.handoverCount ?? 0).toString(),
+      change: "Live",
       trend: "up",
       icon: Users
     },
     {
-      title: "Total Messages (30d)",
-      value: displayMetrics.totalMessages.toLocaleString(),
+      title: "Total Messages",
+      value: (displayMetrics.totalMessages ?? 0).toLocaleString(),
       change: "+8%",
       trend: "up",
       icon: MessageSquare
     },
     {
       title: "AI Resolution Rate",
-      value: `${displayMetrics.aiHandledPercentage}%`,
+      value: `${aiHandledRate}%`,
       change: "-2%",
       trend: "down",
       icon: Bot
     },
     {
-      title: "Avg Resolution Time",
-      value: displayMetrics.averageResolutionTime,
-      change: "-15%",
-      trend: "up", // faster is better
+      title: "FAQ Matches",
+      value: (displayMetrics.faqMatchTotal ?? 0).toString(),
+      change: "Automated",
+      trend: "up",
       icon: Clock
     }
   ];
@@ -135,9 +140,27 @@ const Dashboard: React.FC = () => {
       {/* Quick Actions Area */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
         <div className="bg-white border-2 border-[#E5E5E5] p-6">
-          <h2 className="text-xl font-display font-bold text-[#1A1A1A] mb-4">Recent Activity</h2>
-          <div className="space-y-4">
-            <p className="text-[#666666] italic text-sm">Activity feed will appear here as conversations happen.</p>
+          <h2 className="text-xl font-display font-bold text-[#1A1A1A] mb-4">Recent Handovers</h2>
+          <div className="space-y-3">
+            {displayMetrics.recentHandovers && displayMetrics.recentHandovers.length > 0 ? (
+              displayMetrics.recentHandovers.map((handover: any, idx: number) => (
+                <div 
+                  key={idx} 
+                  className="flex justify-between items-center p-3 bg-[#F5F5F0] border-2 border-[#E5E5E5] hover:border-[#C1440E] cursor-pointer transition-colors"
+                  onClick={() => navigate(`/inbox`)}
+                >
+                  <div>
+                    <p className="font-medium text-[#1A1A1A]">{handover.customer_phone}</p>
+                    <p className="text-xs text-[#C1440E] mt-1 font-medium">Reason: {handover.handover_reason || 'Human Support Requested'}</p>
+                  </div>
+                  <button className="text-sm bg-white border-2 border-[#1A1A1A] px-3 py-1 font-medium text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors">
+                    Reply
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-[#666666] italic text-sm">No pending handovers right now. AI is handling everything! 🚀</p>
+            )}
           </div>
         </div>
         

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, MessageSquare, AlertCircle, Bot, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,8 +71,6 @@ const Inbox: React.FC = () => {
   }, [selectedId]);
 
   // 3. Supabase Realtime Subscription: Conversations
-  // This channel listens for ANY inserts or updates on the 'conversations' table.
-  // It instantly updates the List Pane when a customer triggers a handover or sends a new message.
   useEffect(() => {
     if (!tenant) return;
 
@@ -84,12 +82,10 @@ const Inbox: React.FC = () => {
         filter: `tenant_id=eq.${tenant.id}` 
       }, (payload) => {
         setConversations(prev => {
-          // If the conversation already exists in state, update it.
           const exists = prev.find(c => c.id === payload.new.id);
           if (exists) {
             return prev.map(c => c.id === payload.new.id ? payload.new : c);
           }
-          // Otherwise, add it to the top of the list.
           return [payload.new, ...prev];
         });
       })
@@ -101,8 +97,6 @@ const Inbox: React.FC = () => {
   }, [tenant]);
 
   // 4. Supabase Realtime Subscription: Messages
-  // This channel specifically listens for new messages inserted into the currently active conversation.
-  // It drives the "live chat" experience in the Detail Pane.
   useEffect(() => {
     if (!selectedId || !tenant) return;
     
@@ -114,7 +108,6 @@ const Inbox: React.FC = () => {
         filter: `conversation_id=eq.${selectedId}` 
       }, (payload) => {
         setMessages(prev => {
-          // Prevent duplicates if we optimistically rendered the message
           if (prev.find(m => m.id === payload.new.id)) return prev;
           return [...prev, payload.new];
         });
@@ -128,7 +121,7 @@ const Inbox: React.FC = () => {
 
   const selectedConv = conversations.find(c => c.id === selectedId);
 
-  const handleClaim = async () => {
+  const handleClaim = useCallback(async () => {
     if (!selectedId || !tenant) return;
     const { data, error } = await supabase
       .from('conversations')
@@ -143,9 +136,9 @@ const Inbox: React.FC = () => {
     if (!error && data && data.length > 0) {
       setConversations(conversations.map(c => c.id === selectedId ? { ...c, status: 'handover_active' } : c));
     }
-  };
+  }, [selectedId, tenant, conversations]);
 
-  const handleReturnToBot = async () => {
+  const handleReturnToBot = useCallback(async () => {
     if (!selectedId) return;
     const { error } = await supabase
       .from('conversations')
@@ -156,9 +149,9 @@ const Inbox: React.FC = () => {
       setConversations(conversations.map(c => c.id === selectedId ? { ...c, status: 'bot' } : c));
       setSelectedId(null);
     }
-  };
+  }, [selectedId, conversations]);
 
-  const handleSendReply = async () => {
+  const handleSendReply = useCallback(async () => {
     if (!selectedId || !replyText.trim() || !tenant || !session) return;
     
     try {
@@ -194,11 +187,70 @@ const Inbox: React.FC = () => {
       console.error('Error sending message via API:', error);
       alert('Failed to send message. Is the backend server running?');
     }
-  };
+  }, [selectedId, replyText, tenant, session, messages]);
 
-  const formatTime = (ts: string) => {
+  const formatTime = useCallback((ts: string) => {
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, []);
+
+  const memoizedConversations = useMemo(() => {
+    if (loading) {
+      return <div className="p-8 text-center text-[#666666] font-medium">Loading...</div>;
+    }
+    if (conversations.length === 0) {
+      return <div className="p-8 text-center text-[#666666] font-medium">No conversations found.</div>;
+    }
+    return conversations.map(conv => (
+      <li 
+        key={conv.id} 
+        className={cn(
+          "p-4 border-b-2 border-[#E5E5E5] cursor-pointer hover:bg-gray-50 transition-colors",
+          selectedId === conv.id ? "bg-orange-50 border-l-4 border-l-[#C1440E]" : ""
+        )}
+        onClick={() => setSelectedId(conv.id)}
+      >
+        <div className="flex justify-between items-start mb-2">
+          <span className="font-mono text-sm text-[#666666]">{conv.customer_phone}</span>
+          <span className="text-xs text-[#666666] font-medium">{formatTime(conv.last_message_at)}</span>
+        </div>
+        <div className="flex justify-between items-center mt-1">
+          <div className="font-bold text-[#1A1A1A]">{conv.customer_name || 'Customer'}</div>
+          <div className={cn(
+            "px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider border",
+            conv.status === 'bot' ? "bg-blue-50 text-blue-700 border-blue-200" :
+            conv.status === 'handover_pending' ? "bg-orange-100 text-[#C1440E] border-orange-200" :
+            conv.status === 'handover_active' ? "bg-purple-50 text-purple-700 border-purple-200" :
+            "bg-green-50 text-green-700 border-green-200"
+          )}>
+            {conv.status.replace('_', ' ')}
+          </div>
+        </div>
+      </li>
+    ));
+  }, [loading, conversations, selectedId, formatTime]);
+
+  const memoizedMessages = useMemo(() => {
+    if (messages.length === 0) {
+      return <div className="text-center text-[#666666] font-medium mt-8">No messages loaded.</div>;
+    }
+    return messages.map(msg => (
+      <div key={msg.id} className={cn("flex flex-col max-w-[75%]", msg.direction === 'inbound' ? "self-start items-start" : "self-end items-end ml-auto")}>
+        <div className={cn(
+          "px-4 py-3 border-2 shadow-sm text-[0.95rem]",
+          msg.direction === 'inbound' 
+            ? "bg-white border-[#E5E5E5] text-[#1A1A1A] rounded-tr-xl rounded-br-xl rounded-bl-xl" 
+            : "bg-[#1A1A1A] border-[#1A1A1A] text-white rounded-tl-xl rounded-tr-xl rounded-bl-xl"
+        )}>
+          {msg.content || '(Unsupported message type)'}
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-[#666666] font-medium">{formatTime(msg.created_at)}</span>
+          {msg.sender === 'agent' && <User size={12} className="text-[#C1440E]" />}
+          {msg.sender === 'bot' && <Bot size={12} className="text-blue-600" />}
+        </div>
+      </div>
+    ));
+  }, [messages, formatTime]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] border-2 border-[#E5E5E5] bg-white overflow-hidden">
@@ -239,37 +291,7 @@ const Inbox: React.FC = () => {
         </div>
 
         <ul className="flex-1 overflow-y-auto">
-          {loading ? (
-             <div className="p-8 text-center text-[#666666] font-medium">Loading...</div>
-          ) : conversations.length === 0 ? (
-             <div className="p-8 text-center text-[#666666] font-medium">No conversations found.</div>
-          ) : conversations.map(conv => (
-            <li 
-              key={conv.id} 
-              className={cn(
-                "p-4 border-b-2 border-[#E5E5E5] cursor-pointer hover:bg-gray-50 transition-colors",
-                selectedId === conv.id ? "bg-orange-50 border-l-4 border-l-[#C1440E]" : ""
-              )}
-              onClick={() => setSelectedId(conv.id)}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-mono text-sm text-[#666666]">{conv.customer_phone}</span>
-                <span className="text-xs text-[#666666] font-medium">{formatTime(conv.last_message_at)}</span>
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <div className="font-bold text-[#1A1A1A]">{conv.customer_name || 'Customer'}</div>
-                <div className={cn(
-                  "px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider border",
-                  conv.status === 'bot' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                  conv.status === 'handover_pending' ? "bg-orange-100 text-[#C1440E] border-orange-200" :
-                  conv.status === 'handover_active' ? "bg-purple-50 text-purple-700 border-purple-200" :
-                  "bg-green-50 text-green-700 border-green-200"
-                )}>
-                  {conv.status.replace('_', ' ')}
-                </div>
-              </div>
-            </li>
-          ))}
+          {memoizedConversations}
         </ul>
       </div>
 
@@ -307,25 +329,7 @@ const Inbox: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.length === 0 ? (
-                 <div className="text-center text-[#666666] font-medium mt-8">No messages loaded.</div>
-              ) : messages.map(msg => (
-                <div key={msg.id} className={cn("flex flex-col max-w-[75%]", msg.direction === 'inbound' ? "self-start items-start" : "self-end items-end ml-auto")}>
-                  <div className={cn(
-                    "px-4 py-3 border-2 shadow-sm text-[0.95rem]",
-                    msg.direction === 'inbound' 
-                      ? "bg-white border-[#E5E5E5] text-[#1A1A1A] rounded-tr-xl rounded-br-xl rounded-bl-xl" 
-                      : "bg-[#1A1A1A] border-[#1A1A1A] text-white rounded-tl-xl rounded-tr-xl rounded-bl-xl"
-                  )}>
-                    {msg.content || '(Unsupported message type)'}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-[#666666] font-medium">{formatTime(msg.created_at)}</span>
-                    {msg.sender === 'agent' && <User size={12} className="text-[#C1440E]" />}
-                    {msg.sender === 'bot' && <Bot size={12} className="text-blue-600" />}
-                  </div>
-                </div>
-              ))}
+              {memoizedMessages}
             </div>
 
             <div className="p-6 bg-white border-t-2 border-[#E5E5E5]">

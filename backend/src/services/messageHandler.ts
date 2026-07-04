@@ -43,67 +43,6 @@ export async function handleInboundWebhook(providerName: string, headers: any, p
  * and triggers the AI/Automation pipeline if the conversation is not handed over to a human.
  */
 async function processSingleMessage(msg: NormalizedInboundMessage, providerName: string) {
-  // Step 1: Identify Tenant
-  // We determine which business this message belongs to by looking at the destination phone number ID.
-  let tenantId: string | null = null;
-  
-  const { data: configs } = await supabaseAdmin
-    .from('tenant_bsp_config')
-    .select('tenant_id, waba_id, phone_number_id');
-    
-  const match = configs?.find(c => c.phone_number_id === msg.toPhoneNumberId || c.waba_id === msg.toPhoneNumberId);
-  
-  if (match) {
-    tenantId = match.tenant_id;
-  }
-
-  if (!tenantId) {
-    console.error(`Could not resolve tenant for phone_number_id: ${msg.toPhoneNumberId}`);
-    return;
-  }
-
-  // Step 2: Session Management (Find or Create Conversation)
-  // We look for an existing conversation between this tenant and this customer's phone number.
-  const { data: conv, error: convError } = await supabaseAdmin
-    .from('conversations')
-    .select('id, status')
-    .eq('tenant_id', tenantId)
-    .eq('customer_phone', msg.fromPhone)
-    .single();
-
-  let conversationId = conv?.id;
-
-  if (!conversationId) {
-    // If no conversation exists, create a fresh one and assign it to the 'bot' by default.
-    const { data: newConv, error: newConvError } = await supabaseAdmin
-      .from('conversations')
-      .insert({
-        tenant_id: tenantId,
-        customer_phone: msg.fromPhone,
-        customer_name: msg.customerName || 'Customer',
-        status: 'bot', // Default state is bot-handled
-        last_customer_message_at: msg.timestamp,
-        last_message_at: msg.timestamp
-      })
-      .select('id')
-      .single();
-      
-    if (newConvError) {
-      console.error('Failed to create conversation:', newConvError);
-      return;
-    }
-    conversationId = newConv.id;
-  } else {
-    // If it exists, just bump the "last active" timestamps.
-    await supabaseAdmin
-      .from('conversations')
-      .update({
-        last_customer_message_at: msg.timestamp,
-        last_message_at: msg.timestamp
-      })
-      .eq('id', conversationId);
-  }
-
   let messageContent = msg.text || '';
   let transcript = '';
 
@@ -113,37 +52,42 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
     messageContent = transcript;
   }
 
-  // Step 3: Message Persistence and Deduplication
-  // Insert the raw message into the database. The `wa_message_id` has a UNIQUE constraint in Postgres.
-  const { error: msgInsertError } = await supabaseAdmin
-    .from('messages')
-    .insert({
-      conversation_id: conversationId,
-      tenant_id: tenantId,
-      direction: 'inbound',
-      message_type: msg.type,
-      content: messageContent,
-      media_url: msg.mediaUrl,
-      transcript: transcript || null,
-      wa_message_id: msg.waMessageId,
-      sender: 'customer'
-    });
+  // Unified Database Transaction: Resolves tenant, manages session, and deduplicates message in a single RPC
+  const { data: result, error: rpcError } = await supabaseAdmin.rpc('process_inbound_message', {
+    p_phone_number_id: msg.toPhoneNumberId,
+    p_customer_phone: msg.fromPhone,
+    p_customer_name: msg.customerName || 'Customer',
+    p_message_type: msg.type,
+    p_content: messageContent,
+    p_media_url: msg.mediaUrl,
+    p_transcript: transcript || null,
+    p_wa_message_id: msg.waMessageId,
+    p_timestamp: msg.timestamp || new Date().toISOString()
+  });
 
-  if (msgInsertError) {
-    // Postgres Error 23505 means Unique Violation. This safely deduplicates webhook retries from the BSP.
-    if (msgInsertError.code === '23505') { 
-      console.log(`[Dedup] Message ${msg.waMessageId} already exists. Ignoring.`);
-      return;
-    }
-    console.error('Failed to insert message:', msgInsertError);
+  if (rpcError) {
+    console.error('Failed to process message via RPC:', rpcError);
     return;
   }
+
+  if (result.status === 'error') {
+    console.error(`RPC Error: ${result.reason} for phone_number_id ${msg.toPhoneNumberId}`);
+    return;
+  }
+
+  if (result.status === 'duplicate') {
+    console.log(`[Dedup] Message ${msg.waMessageId} already exists. Ignoring.`);
+    return;
+  }
+
+  const tenantId = result.tenant_id;
+  const conversationId = result.conversation_id;
+  const currentStatus = result.conv_status;
 
   console.log(`✅ Processed inbound message from ${msg.fromPhone}`);
   
   // Step 4: Routing to Automation / AI Pipeline
   // PRD CRITICAL RULE 1: A bot MUST NEVER send an automated message while a conversation is in human handover state.
-  const currentStatus = conv?.status || 'bot';
   
   if (messageContent && currentStatus === 'bot') {
     // If it's a text/audio message and the bot is active, route to the AI generator.

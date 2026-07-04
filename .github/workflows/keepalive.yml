@@ -1,0 +1,33 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs at 00:00 every 2nd day to prevent Supabase free tier from pausing
+    - cron: '0 0 */2 * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Error: Secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set in GitHub repository."
+            exit 1
+          fi
+          
+          # Hit a simple table (e.g., 'tenants') limiting to 1 row just to register activity
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$SUPABASE_URL/rest/v1/tenants?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Successfully pinged Supabase (Status 200). Project will stay active!"
+          else
+            echo "Failed to ping Supabase. HTTP Status: $RESPONSE"
+            exit 1
+          fi

@@ -28,8 +28,18 @@ export async function processAutomationPipeline(
     return;
   }
 
-  // 3. RAG Retrieval
-  const chunks = await retrieveRelevantChunks(tenantId, messageText);
+  // 3. RAG Retrieval & Tenant Lookup & History Lookup (Concurrent)
+  const [chunks, { data: tenant }, { data: history }] = await Promise.all([
+    retrieveRelevantChunks(tenantId, messageText),
+    supabaseAdmin.from('tenants').select('business_name').eq('id', tenantId).single(),
+    supabaseAdmin
+      .from('messages')
+      .select('direction, content')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(6)
+  ]);
+
   if (chunks.length === 0) {
     console.log(`[Pipeline] No RAG chunks found.`);
     // Trigger handover per TRD §3.2 (low retrieval confidence / no FAQ + no RAG)
@@ -38,10 +48,15 @@ export async function processAutomationPipeline(
   }
 
   // 4. LLM Generation
-  const { data: tenant } = await supabaseAdmin.from('tenants').select('business_name').eq('id', tenantId).single();
   const businessName = tenant?.business_name || 'this business';
+  
+  // Format history from oldest to newest for the prompt
+  const formattedHistory = (history || []).reverse().map(h => ({
+    direction: h.direction as 'inbound' | 'outbound',
+    content: h.content
+  }));
 
-  const llmResponse = await generateRAGResponse(messageText, chunks, businessName);
+  const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory);
 
   if (llmResponse.confidence !== 'high') {
     console.log(`[Pipeline] LLM returned low confidence.`);
@@ -55,6 +70,8 @@ export async function processAutomationPipeline(
   await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id));
 }
 
+import { appCache } from '../../lib/cache';
+
 async function sendBotReply(
   tenantId: string, 
   conversationId: string, 
@@ -64,13 +81,23 @@ async function sendBotReply(
   source: 'faq' | 'rag',
   chunkIds?: string[]
 ) {
-  // 1. Load provider config for this tenant
-  const { data: config } = await supabaseAdmin
-    .from('tenant_bsp_config')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('bsp_provider', providerName)
-    .single();
+  // 1. Load provider config for this tenant (from Cache)
+  const cacheKey = `bsp_config_${tenantId}_${providerName}`;
+  let config = appCache.get<any>(cacheKey);
+  
+  if (!config) {
+    const { data } = await supabaseAdmin
+      .from('tenant_bsp_config')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('bsp_provider', providerName)
+      .single();
+    
+    config = data;
+    if (config) {
+      appCache.set(cacheKey, config, 300); // cache for 5 minutes
+    }
+  }
 
   // 2. Dispatch to BSP
   const provider = getBSPProvider(providerName);
