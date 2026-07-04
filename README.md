@@ -1,6 +1,8 @@
-# Flought
+# WhatsApp AI SaaS Platform
 
-**WhatsApp Business automation for Indian SMBs** — an agency-delivered platform that lets Flought onboard a client's WhatsApp number, configure a business-scoped bot (FAQ-first, RAG fallback) with reliable human handover, and bill them monthly. Not a self-serve SaaS competing horizontally; Flought is the agency, the platform is the delivery mechanism.
+A multi-tenant, high-performance SaaS platform that empowers businesses to automate their customer support on WhatsApp using AI (RAG) with seamless human agent handovers. 
+
+This repository contains the complete monolithic codebase (Frontend + Backend) for the SaaS, built with modern, aggressive performance optimizations and strict tenant data isolation.
 
 ---
 
@@ -10,29 +12,32 @@
 # Install dependencies
 npm install
 
-# Start the Vite development server
+# Start the Vite development server (Frontend)
 npm run dev
+
+# Start the Express backend (in a separate terminal)
+cd backend && npm install && npm run dev
 ```
 
 ---
 
 ## 🏗 Architecture & Tech Stack
 
-Flought is built on a highly optimized, modern tech stack designed for speed, scalability, and an Apple-tier "Pro Max" user experience.
+This SaaS is built on a highly optimized, modern tech stack designed for speed, scalability, and an Apple-tier "Pro Max" user experience.
 
 ### Frontend
 - **Framework:** React 18 powered by Vite.
 - **Routing:** React Router DOM (v6).
-- **Performance:** Implements aggressive route-based code splitting using `React.lazy()` and `<Suspense>`. Users only download the specific Javascript bundle for the page they are viewing, drastically reducing initial load times.
+- **Performance:** Implements aggressive route-based code splitting using `React.lazy()` and `<Suspense>`. Users only download the specific JavaScript bundle for the page they are viewing, drastically reducing initial load times.
 - **Styling (Pro Max UI):** 
-  - **Tailwind CSS v4:** The entire CSS architecture was migrated from raw Vanilla CSS to the highly-performant Tailwind v4 engine, resulting in a zero-runtime-overhead styling solution.
+  - **Tailwind CSS v4:** The entire CSS architecture uses the highly-performant Tailwind v4 engine, resulting in a zero-runtime-overhead styling solution.
   - **Radix UI:** Headless UI primitives (Dialogs, Dropdowns) are used for accessible, unstyled interactive components.
   - **Design Language:** Clean, brutalist layout featuring stark contrasting borders, flat colors, and mono-spaced fonts (`Courier Prime`) mixed with modern sans-serif (`Inter`, `Space Grotesk`).
 
 ### Backend & Database
 - **Database:** PostgreSQL (via Supabase).
-- **Auth:** Supabase Auth with Row Level Security (RLS) guaranteeing strict tenant isolation.
-- **API:** Node.js / Express backend handles secure routes (tenant provisioning, WhatsApp Webhook ingestion, out-bound Gupshup/BSP API calls).
+- **Auth:** Supabase Auth with Row Level Security (RLS) guaranteeing strict multi-tenant isolation.
+- **API:** Node.js / Express backend handles secure routes (tenant provisioning, WhatsApp Webhook ingestion, outbound BSP API calls).
 - **Security:** Strict payload validation enforces enum constraints (`region`, `tier`) and string lengths before inserting records into Postgres.
 
 ### AI & RAG Pipeline
@@ -44,39 +49,40 @@ Flought is built on a highly optimized, modern tech stack designed for speed, sc
 
 ## 📁 Project Structure
 
-```
+```text
 d:\Watsapp saas\
-├── Doc/                    # Source-of-truth specification documents
-├── src/                    # React Frontend Source Code
-│   ├── components/         # Reusable React components (Layout, Auth)
-│   ├── contexts/           # React Context (AuthContext)
-│   ├── lib/                # Utilities (supabase client, tailwind merge)
-│   └── pages/              # Lazy-loaded route views
-├── backend/                # Express server and backend services
-│   ├── src/routes/         # API Controllers
-│   └── src/services/       # RAG, LLM, and BSP abstraction layer
-├── supabase/               # Supabase config and SQL migrations
-├── PLAN.md                 # Living implementation roadmap
-├── SESSION.md              # Running work-session log
-├── CHANGELOG.md            # Terse log of shipped changes
-├── DECISIONS.md            # Architecture & design decisions log
-└── README.md               # 👈 You are here
+├── Doc/                  # Source-of-truth specification documents
+├── src/                  # React Frontend Source Code
+│   ├── components/       # Reusable React components (Layout, Auth)
+│   ├── contexts/         # React Context (AuthContext)
+│   ├── lib/              # Utilities (supabase client, tailwind merge)
+│   └── pages/            # Lazy-loaded route views
+├── backend/              # Express server and backend services
+│   ├── src/routes/       # API Controllers (webhooks, admin, outbound)
+│   └── src/services/     # RAG, LLM, and BSP abstraction layer
+├── supabase/             # Supabase config and SQL migrations
+├── ARCHITECTURE.md       # Deep-dive into data flow and RLS
+├── SITEMAP.md            # Map of all frontend and backend routes
+├── PLAN.md               # Living implementation roadmap
+└── README.md             # 👈 You are here
 ```
 
 ---
 
-## 📚 Living Documentation
+## 🔐 Multi-Tenancy & Security
+Because this is a SaaS application, a single Postgres database holds data for multiple different businesses. We strictly enforce isolation using **Postgres Row Level Security (RLS)**.
 
-These files are updated throughout the build, not written once and abandoned:
+Every table has an RLS policy that essentially says:
+> *You can only SELECT/INSERT/UPDATE this row if the `tenant_id` matches the business you are authenticated with.*
 
-| File | Purpose | When to read |
-|---|---|---|
-| [PLAN.md](file:///d:/Watsapp%20saas/PLAN.md) | Full phase/sub-phase breakdown. Items marked done/in-progress/blocked. | Before starting any work session |
-| [SESSION.md](file:///d:/Watsapp%20saas/SESSION.md) | What was attempted, built, broke, and left hanging. | When picking up after a gap |
-| [CHANGELOG.md](file:///d:/Watsapp%20saas/CHANGELOG.md) | Dated log of shipped changes. | To answer "what changed since X?" |
-| [DECISIONS.md](file:///d:/Watsapp%20saas/DECISIONS.md) | Architecture decisions with rationale. | When questioning why something was done a certain way |
+There is also a strict **Platform Admin** bypass, allowing SaaS owners to log into a hidden dashboard to provision new businesses and manage subscription tiers.
 
 ---
 
-## Source-of-Truth Documents
-All product, technical, and legal specifications live in [`Doc/`](file:///d:/Watsapp%20saas/Doc). The **PRD** is the parent document — if any other document conflicts with it, the PRD wins; update the PRD first, then propagate.
+## 💬 The WhatsApp Loop
+When a customer sends a WhatsApp message to a business using this SaaS:
+1. **Webhook:** Gupshup/BSP POSTs to our Express backend.
+2. **State Check:** We check Postgres to see if the conversation is `bot` or `handover_pending`.
+3. **RAG:** If `bot`, we query `pgvector` for context.
+4. **LLM:** We ask Claude to answer securely using strict JSON outputs.
+5. **Action:** If the LLM has high confidence, it replies. If it has low confidence, it mutes the AI and alerts human agents on the React frontend via Supabase Realtime WebSockets.
