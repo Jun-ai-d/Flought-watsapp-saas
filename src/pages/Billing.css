@@ -1,0 +1,51 @@
+.billing-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.usage-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.usage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: rgba(26, 31, 60, 0.1);
+  width: 100%;
+}
+
+.progress-fill {
+  height: 100%;
+}
+
+.bg-indigo {
+  background-color: var(--text-indigo);
+}
+
+.bg-red {
+  background-color: var(--accent-red);
+}
+
+@media (min-width: 1024px) {
+  .billing-grid {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .plan-panel {
+    flex: 1;
+  }
+  
+  .invoice-panel {
+    flex: 2;
+  }
+}

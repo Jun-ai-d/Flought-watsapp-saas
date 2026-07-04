@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-orange: #C1440E;
+  --color-brand-orange-light: #d65a24;
+  --color-brand-bg: #F5F5F0;
+  
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "Courier Prime", monospace;
+}
+
+:root {
+  --primary-color: #C1440E;
+  --background-color: #F5F5F0;
+  --surface-color: #FFFFFF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --border-color: #E5E5E5;
+  --danger-color: #DC2626;
+  --success-color: #16A34A;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--background-color);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+/* Explicitly flat surfaces - NO gradients, NO rounded pills, NO soft shadows */
+button, input, select, textarea {
+  font-family: inherit;
+  border-radius: 0; /* Ledger flat */
+}
