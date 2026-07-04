@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Users, MessageSquare, Clock, ArrowUpRight, ArrowDownRight, Bot } from 'lucide-react';
+import { Users, MessageSquare, Clock, ArrowUpRight, Bot } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface DashboardMetrics {
   totalMessages: number;
@@ -64,29 +65,25 @@ const Dashboard: React.FC = () => {
     {
       title: "Active Handovers",
       value: (displayMetrics.handoverCount ?? 0).toString(),
-      change: "Live",
-      trend: "up",
+      subtitle: "Live now",
       icon: Users
     },
     {
       title: "Total Messages",
       value: (displayMetrics.totalMessages ?? 0).toLocaleString(),
-      change: "+8%",
-      trend: "up",
+      subtitle: "All time",
       icon: MessageSquare
     },
     {
       title: "AI Resolution Rate",
       value: `${aiHandledRate}%`,
-      change: "-2%",
-      trend: "down",
+      subtitle: "Bot-handled",
       icon: Bot
     },
     {
       title: "FAQ Matches",
       value: (displayMetrics.faqMatchTotal ?? 0).toString(),
-      change: "Automated",
-      trend: "up",
+      subtitle: "Automated",
       icon: Clock
     }
   ];
@@ -120,12 +117,8 @@ const Dashboard: React.FC = () => {
                 <div className="p-2 bg-[#F5F5F0] border-2 border-[#E5E5E5]">
                   <Icon className="h-5 w-5 text-[#1A1A1A]" />
                 </div>
-                <div className={cn(
-                  "flex items-center text-sm font-medium",
-                  isPositiveTrend ? "text-[#16A34A]" : "text-[#DC2626]"
-                )}>
-                  {stat.change}
-                  {isPositiveTrend ? <ArrowUpRight className="ml-1 h-4 w-4" /> : <ArrowDownRight className="ml-1 h-4 w-4" />}
+                <div className="flex items-center text-sm font-medium text-[#666666]">
+                  {stat.subtitle}
                 </div>
               </div>
               <div>
@@ -188,10 +181,5 @@ const Dashboard: React.FC = () => {
     </div>
   );
 };
-
-// Simple generic cn function for this file if utils isn't fully imported correctly
-function cn(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(' ');
-}
 
 export default Dashboard;

@@ -4,6 +4,7 @@ import webhooksRouter from './routes/webhooks';
 import outboundRouter from './routes/outbound';
 import metricsRoutes from './routes/metrics';
 import adminRoutes from './routes/admin';
+import bspRoutes from './routes/bsp';
 
 import rateLimit from 'express-rate-limit';
 
@@ -20,7 +21,6 @@ const webhookLimiter = rateLimit({
   message: 'Too many requests to webhook endpoint, please try again later.'
 });
 
-import bspRoutes from './routes/bsp';
 
 // Routes
 app.use('/webhooks', webhookLimiter, webhooksRouter);

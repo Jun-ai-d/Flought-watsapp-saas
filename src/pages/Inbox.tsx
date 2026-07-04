@@ -34,7 +34,8 @@ const Inbox: React.FC = () => {
         .from('conversations')
         .select('*')
         .eq('tenant_id', tenant.id)
-        .order('last_message_at', { ascending: false });
+        .order('last_message_at', { ascending: false })
+        .limit(50);
         
       if (filter !== 'all') {
         query = query.eq('status', filter);
@@ -367,7 +368,8 @@ const Inbox: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <button 
                     className="px-4 py-2 font-medium text-[#666666] hover:text-[#1A1A1A] disabled:opacity-50 transition-colors" 
-                    disabled={selectedConv.status === 'resolved' || selectedConv.status === 'handover_pending' || selectedConv.status === 'bot'}
+                    disabled
+                    title="Template messaging coming soon"
                   >
                     Use Template
                   </button>

@@ -31,7 +31,8 @@ const Settings: React.FC = () => {
     if (!tenant || !session) return;
     setLoadingBsp(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/bsp/${tenant.id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/bsp/${tenant.id}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       if (res.ok) {
@@ -76,7 +77,8 @@ const Settings: React.FC = () => {
     setSavingBsp(true);
     
     try {
-      const res = await fetch(`http://localhost:4000/api/bsp/${tenant.id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/bsp/${tenant.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

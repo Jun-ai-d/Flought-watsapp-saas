@@ -18,7 +18,7 @@ export const requireTenantMember = async (req: TenantRequest, res: Response, nex
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  const tenantId = req.body.tenantId || req.params.tenantId;
+  const tenantId = req.body.tenantId || req.params.tenantId || req.query.tenantId;
   
   if (!tenantId) {
     return res.status(400).json({ error: 'Missing tenantId in request' });

@@ -17,9 +17,13 @@ const TemplateManager: React.FC = () => {
           <h1 className="page-title">Message Templates</h1>
           <p className="text-gray">Manage pre-approved WhatsApp templates for outbound messaging.</p>
         </div>
-        <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5, cursor: 'not-allowed' }} disabled>
           <Plus size={18} /> New Template
         </button>
+      </div>
+
+      <div className="margin-rule" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'rgba(193, 68, 14, 0.1)', border: '1px solid rgba(193, 68, 14, 0.2)', color: '#C1440E', borderRadius: '8px' }}>
+        <strong>🚧 Coming Soon:</strong> Template creation and management will be available once you connect your BSP provider in Settings. The data below is sample preview data.
       </div>
 
       <div className="content-panel margin-rule" style={{ marginLeft: '1rem' }}>

@@ -4,6 +4,7 @@ import { matchFAQ } from './faqMatcher';
 import { retrieveRelevantChunks } from '../kb/retrieval';
 import { generateRAGResponse } from '../llm/generator';
 import { getBSPProvider } from '../../bsp/providerFactory';
+import { appCache } from '../../lib/cache';
 
 export async function processAutomationPipeline(
   tenantId: string, 
@@ -73,7 +74,6 @@ export async function processAutomationPipeline(
   await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id));
 }
 
-import { appCache } from '../../lib/cache';
 
 async function sendBotReply(
   tenantId: string, 

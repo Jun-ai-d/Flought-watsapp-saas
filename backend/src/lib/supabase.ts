@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 
-const envPath = path.resolve(process.cwd(), '../.env');
+const envPath = path.resolve(__dirname, '../../.env');
 const result = dotenv.config({ path: envPath });
 
 if (result.error) {

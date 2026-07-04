@@ -60,7 +60,7 @@ export class GupshupProvider implements BSPProvider {
     templateParams: string[];
     providerConfig: Record<string, any>;
   }): Promise<SendResult> {
-    console.log(`[Gupshup] Sending template message to ${params.to}`);
+    console.warn(`[Gupshup] sendTemplateMessage is NOT YET IMPLEMENTED. Returning fake success for tenant ${params.tenantId}.`);
     
     return {
       bspMessageId: `gs-${Date.now()}-${Math.random().toString(36).substring(7)}`,

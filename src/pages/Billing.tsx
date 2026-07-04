@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CreditCard, Download } from 'lucide-react';
+import { CreditCard, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import './Billing.css';
@@ -7,28 +7,51 @@ import './Billing.css';
 const Billing: React.FC = () => {
   const { tenant } = useAuth();
   const [sub, setSub] = useState<any>(null);
+  const [usage, setUsage] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!tenant) return;
     
-    const fetchSubscription = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .eq('status', 'active')
-        .single();
-        
-      if (!error && data) {
-        setSub(data);
-      }
+      
+      // Fetch subscription and usage in parallel
+      const billingPeriod = new Date();
+      billingPeriod.setDate(1);
+      const periodStr = billingPeriod.toISOString().split('T')[0];
+      
+      const [subRes, usageRes] = await Promise.all([
+        supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .eq('status', 'active')
+          .single(),
+        supabase
+          .from('usage_tracking')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .eq('billing_period', periodStr)
+          .single()
+      ]);
+      
+      if (!subRes.error && subRes.data) setSub(subRes.data);
+      if (!usageRes.error && usageRes.data) setUsage(usageRes.data);
+      
       setLoading(false);
     };
     
-    fetchSubscription();
+    fetchData();
   }, [tenant]);
+
+  const messagesSent = usage?.messages_sent || 0;
+  const llmCalls = usage?.llm_calls || 0;
+  const sttMinutes = Number(usage?.stt_minutes || 0).toFixed(1);
+  const capMessages = sub?.cap_messages || 1500;
+  
+  const msgPercent = Math.min(100, Math.round((messagesSent / capMessages) * 100));
+  const llmPercent = Math.min(100, Math.round((llmCalls / 1500) * 100));
 
   return (
     <div className="page-container">
@@ -43,11 +66,6 @@ const Billing: React.FC = () => {
           </button>
           <span className="text-gray" style={{ fontSize: '0.85rem' }}>* Payments via Razorpay coming soon</span>
         </div>
-      </div>
-
-      {/* Razorpay Placeholder Notice */}
-      <div className="margin-rule" style={{ marginBottom: '2rem', padding: '1rem', backgroundColor: 'rgba(193, 68, 14, 0.1)', border: '1px solid rgba(193, 68, 14, 0.2)', color: '#C1440E', borderRadius: '8px' }}>
-        <strong>Testing Phase:</strong> Billing integration is currently paused while we test Razorpay for the Indian market. The usage stats below are simulated placeholders for your active plan.
       </div>
 
       <div className="billing-grid">
@@ -70,11 +88,11 @@ const Billing: React.FC = () => {
               <div className="usage-stats">
                 <div className="usage-item">
                   <div className="usage-header">
-                    <span style={{ fontWeight: 600 }}>Utility/Service Messages</span>
-                    <span className="font-record">0 / {sub.cap_messages?.toLocaleString()}</span>
+                    <span style={{ fontWeight: 600 }}>Messages Sent</span>
+                    <span className="font-record">{messagesSent.toLocaleString()} / {capMessages.toLocaleString()}</span>
                   </div>
                   <div className="progress-bar">
-                    <div className="progress-fill bg-indigo" style={{ width: '0%' }}></div>
+                    <div className="progress-fill bg-indigo" style={{ width: `${msgPercent}%` }}></div>
                   </div>
                   <div className="text-gray" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
                     Overage rate: ₹0.30 per message
@@ -83,21 +101,21 @@ const Billing: React.FC = () => {
 
                 <div className="usage-item">
                   <div className="usage-header">
-                    <span style={{ fontWeight: 600 }}>Marketing Messages</span>
-                    <span className="font-record">0 / 500</span>
+                    <span style={{ fontWeight: 600 }}>AI RAG Queries (LLM Calls)</span>
+                    <span className="font-record">{llmCalls.toLocaleString()} / 1,500</span>
                   </div>
                   <div className="progress-bar">
-                    <div className="progress-fill bg-red" style={{ width: '0%' }}></div>
+                    <div className="progress-fill bg-indigo" style={{ width: `${llmPercent}%` }}></div>
                   </div>
                 </div>
 
                 <div className="usage-item">
                   <div className="usage-header">
-                    <span style={{ fontWeight: 600 }}>AI RAG Queries</span>
-                    <span className="font-record">0 / 1,500</span>
+                    <span style={{ fontWeight: 600 }}>Voice Note Transcription (STT)</span>
+                    <span className="font-record">{sttMinutes} minutes</span>
                   </div>
                   <div className="progress-bar">
-                    <div className="progress-fill bg-indigo" style={{ width: '0%' }}></div>
+                    <div className="progress-fill bg-red" style={{ width: `${Math.min(100, Number(sttMinutes) / 60 * 100)}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -121,7 +139,6 @@ const Billing: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {/* Still Mocked for demo since we don't have stripe/razorpay invoices yet */}
               <tr>
                 <td>Jul 01, 2026</td>
                 <td className="font-record">₹{sub?.price_inr?.toLocaleString() || '0'}</td>
