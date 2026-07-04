@@ -26,6 +26,23 @@ router.post('/send', requireTenantMember, async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
+    // 1.5 Enforce 24hr WhatsApp policy for human agent replies
+    const { data: latestInbound } = await supabaseAdmin
+      .from('messages')
+      .select('created_at')
+      .eq('conversation_id', conversationId)
+      .eq('direction', 'inbound')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latestInbound) {
+      const hoursSinceLastMessage = (Date.now() - new Date(latestInbound.created_at).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastMessage > 24) {
+        return res.status(400).json({ error: 'Cannot send free-form message: Customer last replied over 24 hours ago. WhatsApp requires using an approved Template for new conversations.' });
+      }
+    }
+
     // 2. Load provider config for this tenant
     const { data: config } = await supabaseAdmin
       .from('tenant_bsp_config')
@@ -59,6 +76,9 @@ router.post('/send', requireTenantMember, async (req, res) => {
     if (msgInsertError) {
       console.error('Failed to save outbound message to DB:', msgInsertError);
     }
+    
+    // 5. Track message usage
+    await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
 
     res.json({ success: true, result: sendResult });
   } catch (error: any) {

@@ -17,6 +17,7 @@ const Inbox: React.FC = () => {
   // selectedId tracks which conversation is currently active in the Detail Pane.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'handover_pending' | 'resolved'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
@@ -201,7 +202,21 @@ const Inbox: React.FC = () => {
     if (conversations.length === 0) {
       return <div className="p-8 text-center text-[#666666] font-medium">No conversations found.</div>;
     }
-    return conversations.map(conv => (
+    
+    let filtered = conversations;
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      filtered = conversations.filter(c => 
+        (c.customer_name && c.customer_name.toLowerCase().includes(lower)) ||
+        (c.customer_phone && c.customer_phone.includes(lower))
+      );
+    }
+    
+    if (filtered.length === 0) {
+      return <div className="p-8 text-center text-[#666666] font-medium">No matches found for "{searchTerm}".</div>;
+    }
+
+    return filtered.map(conv => (
       <li 
         key={conv.id} 
         className={cn(
@@ -286,6 +301,8 @@ const Inbox: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search conversations..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border-2 border-[#E5E5E5] focus:border-[#1A1A1A] focus:outline-none transition-colors"
             />
           </div>
@@ -315,7 +332,12 @@ const Inbox: React.FC = () => {
                     <Bot size={18} className="mr-2" /> Return to Bot
                   </button>
                 ) : selectedConv.status === 'resolved' ? (
-                  <button className="px-4 py-2 bg-white text-[#1A1A1A] font-bold tracking-wide hover:bg-gray-50 transition-colors border-2 border-[#1A1A1A]">Reopen</button>
+                  <button 
+                    className="px-4 py-2 bg-white text-[#1A1A1A] font-bold tracking-wide hover:bg-gray-50 transition-colors border-2 border-[#1A1A1A]"
+                    onClick={handleReturnToBot}
+                  >
+                    Reopen
+                  </button>
                 ) : null}
               </div>
             </div>

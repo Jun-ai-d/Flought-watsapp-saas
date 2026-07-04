@@ -69,34 +69,47 @@ You must return a JSON object with two fields:
 - "confidence": "high" if you found a clear answer in the context, "low" if the context was missing the answer or you had to apologize.
 `;
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: process.env.LLM_MODEL || 'gpt-4o-mini', 
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query }
-      ],
-      // Force JSON output so our code can parse the confidence score natively
-      response_format: { type: "json_object" },
-      // Low temperature (0.1) reduces creativity and hallucinations, ensuring fact-based RAG
-      temperature: 0.1
-    });
+  const maxRetries = 3;
+  let attempt = 0;
+  
+  while (attempt < maxRetries) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: process.env.LLM_MODEL || 'gpt-4o-mini', 
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1
+      });
 
-    let responseContent = completion.choices[0]?.message?.content || '{}';
-    // Clean up markdown block formatting just in case the LLM ignored strict JSON mode
-    responseContent = responseContent.replace(/```json\n?|\n?```/g, '').trim();
-    const parsed = JSON.parse(responseContent);
+      let responseContent = completion.choices[0]?.message?.content || '{}';
+      responseContent = responseContent.replace(/```json\n?|\n?```/g, '').trim();
+      const parsed = JSON.parse(responseContent);
 
-    return {
-      content: parsed.content || "I'm sorry, I couldn't process that.",
-      confidence: parsed.confidence || 'low'
-    };
-  } catch (error) {
-    console.error('Error generating LLM response:', error);
-    // If the LLM API crashes, fallback to low confidence to trigger a human handover
-    return {
-      content: "I'm sorry, I'm having trouble connecting right now.",
-      confidence: 'low'
-    };
+      return {
+        content: parsed.content || "I'm sorry, I couldn't process that.",
+        confidence: parsed.confidence || 'low'
+      };
+    } catch (error: any) {
+      attempt++;
+      console.error(`Error generating LLM response (attempt ${attempt}/${maxRetries}):`, error);
+      
+      // If it's a 429 or 5xx, wait and retry. Otherwise break.
+      if (error?.status === 429 || error?.status >= 500) {
+        if (attempt >= maxRetries) break;
+        // Exponential backoff: 1s, 2s, 4s...
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+      } else {
+        break; // Don't retry 400 Bad Request, etc.
+      }
+    }
   }
+
+  // If we exhausted retries or hit an unrecoverable error
+  return {
+    content: "I'm sorry, I'm having trouble connecting right now. Let me transfer you to a human agent.",
+    confidence: 'low'
+  };
 }

@@ -84,6 +84,11 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   const conversationId = result.conversation_id;
   const currentStatus = result.conv_status;
 
+  if (msg.type === 'audio' && transcript) {
+    // Track STT usage (assume average 0.5 mins per voice note for MVP)
+    await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_stt_minutes: 0.5 }).catch(e => console.error(e));
+  }
+
   console.log(`✅ Processed inbound message from ${msg.fromPhone}`);
   
   // Step 4: Routing to Automation / AI Pipeline

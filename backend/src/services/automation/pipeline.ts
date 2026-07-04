@@ -58,6 +58,9 @@ export async function processAutomationPipeline(
 
   const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory);
 
+  // Track LLM Usage
+  await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_llm_calls: 1 }).catch(e => console.error(e));
+
   if (llmResponse.confidence !== 'high') {
     console.log(`[Pipeline] LLM returned low confidence.`);
     // Still send the apology message if it generated one, but also trigger handover
@@ -99,6 +102,24 @@ async function sendBotReply(
     }
   }
 
+  // 1.5 Enforce 24hr WhatsApp policy for bot replies
+  const { data: latestInbound } = await supabaseAdmin
+    .from('messages')
+    .select('created_at')
+    .eq('conversation_id', conversationId)
+    .eq('direction', 'inbound')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (latestInbound) {
+    const hoursSinceLastMessage = (Date.now() - new Date(latestInbound.created_at).getTime()) / (1000 * 60 * 60);
+    if (hoursSinceLastMessage > 24) {
+      console.warn(`[Pipeline] Aborting bot reply. Customer hasn't messaged in >24 hours (strict WhatsApp policy).`);
+      return;
+    }
+  }
+
   // 2. Dispatch to BSP
   const provider = getBSPProvider(providerName);
   const sendResult = await provider.sendSessionMessage({
@@ -107,6 +128,9 @@ async function sendBotReply(
     content: { type: 'text', text },
     providerConfig: config || {} 
   });
+  
+  // Track message usage
+  await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
 
   // 3. Save outbound message to database
   const { error } = await supabaseAdmin
