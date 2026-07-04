@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireTenantMember } from '../middleware/requireTenantMember';
 import { getBSPProvider } from '../bsp/providerFactory';
+import { decryptToken } from '../bsp/crypto';
 
 const router = Router();
 
@@ -46,13 +47,18 @@ router.post('/:tenantId', requireTenantMember, async (req: Request, res: Respons
 
     const provider = getBSPProvider(bspConfig.bsp_provider);
 
+    const decryptedConfig = { ...bspConfig };
+    if (decryptedConfig.access_token_encrypted) {
+      decryptedConfig.access_token_encrypted = decryptToken(decryptedConfig.access_token_encrypted);
+    }
+
     // 2. Submit to BSP
     const submissionResult = await provider.submitTemplate({
       tenantId,
       name,
       category,
       body,
-      providerConfig: bspConfig
+      providerConfig: decryptedConfig
     });
 
     // 3. Save to DB

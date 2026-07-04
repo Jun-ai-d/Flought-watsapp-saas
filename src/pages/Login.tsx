@@ -85,11 +85,9 @@ const Login: React.FC = () => {
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
-
-        <div className="login-footer">
-          <p className="text-gray" style={{ fontSize: '0.85rem' }}>
-            Don't have an account? <a href="#" style={{ color: 'var(--text-indigo)', fontWeight: 600 }}>Request Access</a>
-          </p>
+        
+        <div className="mt-6 text-center text-sm text-[#666666]">
+          Don't have an account? <a href="/signup" className="text-[#C1440E] font-bold hover:underline">Sign up here</a>
         </div>
       </div>
     </div>

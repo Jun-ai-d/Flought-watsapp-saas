@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireTenantMember } from '../middleware/requireTenantMember';
+import { encryptToken } from '../bsp/crypto';
 
 const router = Router();
 
@@ -33,7 +34,6 @@ router.post('/:tenantId', requireTenantMember, async (req: Request, res: Respons
   }
 
   try {
-    // Upsert the config using Supabase Admin because client RLS blocks direct writes to this table
     const updateData: any = {
       tenant_id: tenantId,
       bsp_provider,
@@ -44,10 +44,7 @@ router.post('/:tenantId', requireTenantMember, async (req: Request, res: Respons
     
     // Only update the encrypted token if they provided a new one
     if (api_key) {
-      // In a real app we would use pgcrypto here: 
-      // e.g. access_token_encrypted: supabaseAdmin.raw(`pgp_sym_encrypt('${api_key}', '${process.env.DB_ENCRYPTION_KEY}')`)
-      // But for this demo without pgcrypto enabled, we just store it.
-      updateData.access_token_encrypted = api_key;
+      updateData.access_token_encrypted = encryptToken(api_key);
     }
     
     const { data, error } = await supabaseAdmin

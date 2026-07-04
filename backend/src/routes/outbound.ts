@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getBSPProvider } from '../bsp/providerFactory';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireTenantMember } from '../middleware/requireTenantMember';
+import { decryptToken } from '../bsp/crypto';
 
 const router = Router();
 
@@ -53,11 +54,18 @@ router.post('/send', requireTenantMember, async (req, res) => {
 
     // 3. Dispatch to BSP
     const provider = getBSPProvider(providerName);
+    
+    // Decrypt API key before passing to provider
+    const decryptedConfig = { ...config };
+    if (decryptedConfig.access_token_encrypted) {
+      decryptedConfig.access_token_encrypted = decryptToken(decryptedConfig.access_token_encrypted);
+    }
+    
     const sendResult = await provider.sendSessionMessage({
       tenantId,
       to: conv.customer_phone,
       content: { type: 'text', text },
-      providerConfig: config || {} // Pass decrypted token here in real life
+      providerConfig: decryptedConfig
     });
 
     // 4. Save outbound message to database
@@ -123,13 +131,18 @@ router.post('/send-template', requireTenantMember, async (req, res) => {
     const activeProvider = config?.bsp_provider || providerName;
     const provider = getBSPProvider(activeProvider);
 
+    const decryptedConfig = { ...config };
+    if (decryptedConfig.access_token_encrypted) {
+      decryptedConfig.access_token_encrypted = decryptToken(decryptedConfig.access_token_encrypted);
+    }
+
     const sendResult = await provider.sendTemplateMessage({
       tenantId,
       to: conv.customer_phone,
       templateId: template.bsp_template_id || template.name,
       category: template.category as any,
       templateParams: templateParams || [],
-      providerConfig: config || {}
+      providerConfig: decryptedConfig
     });
 
     let renderedBody = template.body;

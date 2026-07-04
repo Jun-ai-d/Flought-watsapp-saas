@@ -13,6 +13,7 @@ const TemplateManager = lazy(() => import('./pages/TemplateManager'));
 const Billing = lazy(() => import('./pages/Billing'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 
 // Legal Pages
@@ -35,6 +36,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/showcase" element={<DesignShowcase />} />
         
         {/* Legal Routes */}
