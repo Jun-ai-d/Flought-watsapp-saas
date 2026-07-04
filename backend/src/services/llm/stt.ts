@@ -4,7 +4,9 @@ const openai = new OpenAI();
 
 export async function transcribeAudio(mediaUrl: string): Promise<string> {
   try {
-    const response = await fetch(mediaUrl);
+    const response = await fetch(mediaUrl, {
+      headers: { 'apikey': process.env.GUPSHUP_API_KEY || '' }
+    });
     if (!response.ok) throw new Error(`Failed to fetch media: ${response.statusText}`);
     
     const arrayBuffer = await response.arrayBuffer();

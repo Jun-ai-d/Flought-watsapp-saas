@@ -140,9 +140,9 @@ router.post('/tenants', async (req: AdminRequest, res: Response) => {
       .from('subscriptions')
       .insert({
         tenant_id: tenant.id,
-        plan: tier === 'vip' ? 'vip' : 'growth',
-        cap_messages: tier === 'vip' ? 20000 : 4000,
-        price_inr: tier === 'vip' ? 14999 : 4999,
+        plan: tier || 'standard',
+        cap_messages: tier === 'vip' ? 20000 : (tier === 'growth' ? 4000 : 1500),
+        price_inr: tier === 'vip' ? 14999 : (tier === 'growth' ? 4999 : 1999),
         status: 'active'
       });
       

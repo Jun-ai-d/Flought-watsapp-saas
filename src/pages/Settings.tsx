@@ -4,11 +4,102 @@ import { supabase } from '../lib/supabase';
 import './Settings.css';
 
 const Settings: React.FC = () => {
-  const { tenant } = useAuth();
+  const { tenant, session } = useAuth();
   const [activeTab, setActiveTab] = useState<'general' | 'bsp' | 'team'>('general');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'agent'>('agent');
   const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+
+  const [businessName, setBusinessName] = useState('');
+  const [savingGeneral, setSavingGeneral] = useState(false);
+  
+  const [bspConfig, setBspConfig] = useState<any>(null);
+  const [bspForm, setBspForm] = useState({ provider: 'interakt', waba_id: '', phone_id: '', api_key: '' });
+  const [savingBsp, setSavingBsp] = useState(false);
+  const [loadingBsp, setLoadingBsp] = useState(false);
+
+  useEffect(() => {
+    if (tenant) {
+      setBusinessName(tenant.business_name || '');
+      if (activeTab === 'bsp') {
+        fetchBspConfig();
+      }
+    }
+  }, [tenant, activeTab]);
+
+  const fetchBspConfig = async () => {
+    if (!tenant || !session) return;
+    setLoadingBsp(true);
+    try {
+      const res = await fetch(`http://localhost:4000/api/bsp/${tenant.id}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setBspConfig(data);
+          setBspForm({
+            provider: data.bsp_provider || 'interakt',
+            waba_id: data.waba_id || '',
+            phone_id: data.phone_number_id || '',
+            api_key: '' // don't load the real key into the UI
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load BSP config', err);
+    }
+    setLoadingBsp(false);
+  };
+
+  const handleSaveGeneral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenant) return;
+    setSavingGeneral(true);
+    
+    const { error } = await supabase
+      .from('tenants')
+      .update({ business_name: businessName })
+      .eq('id', tenant.id);
+      
+    setSavingGeneral(false);
+    if (!error) {
+      alert('Settings saved successfully!');
+    } else {
+      alert('Failed to save settings: ' + error.message);
+    }
+  };
+
+  const handleSaveBsp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenant || !session) return;
+    setSavingBsp(true);
+    
+    try {
+      const res = await fetch(`http://localhost:4000/api/bsp/${tenant.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          bsp_provider: bspForm.provider,
+          waba_id: bspForm.waba_id,
+          phone_number_id: bspForm.phone_id,
+          api_key: bspForm.api_key
+        })
+      });
+      
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      setBspConfig(data);
+      alert('BSP Configuration saved successfully!');
+      setBspForm(prev => ({ ...prev, api_key: '' })); // clear the key field
+    } catch (err) {
+      alert('Failed to save BSP configuration.');
+    }
+    setSavingBsp(false);
+  };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,15 +162,15 @@ const Settings: React.FC = () => {
           {activeTab === 'general' && (
             <div className="settings-section">
               <h2>Organization Profile</h2>
-              <form className="settings-form" onSubmit={(e) => e.preventDefault()}>
+              <form className="settings-form" onSubmit={handleSaveGeneral}>
                 <div className="form-group">
                   <label>Business Name</label>
-                  <input type="text" defaultValue={tenant?.business_name || "Apex Healthcare"} />
-                </div>
-                
-                <div className="form-group">
-                  <label>Support Email</label>
-                  <input type="email" defaultValue="support@apexhealth.in" />
+                  <input 
+                    type="text" 
+                    required
+                    value={businessName} 
+                    onChange={e => setBusinessName(e.target.value)} 
+                  />
                 </div>
                 
                 <div className="form-group">
@@ -91,7 +182,9 @@ const Settings: React.FC = () => {
                 </div>
                 
                 <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-primary" disabled={savingGeneral}>
+                    {savingGeneral ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -101,41 +194,79 @@ const Settings: React.FC = () => {
             <div className="settings-section">
               <h2>WhatsApp BSP Configuration</h2>
               <p className="text-gray" style={{ marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-                Flought routes messages through your chosen Business Solution Provider (e.g., WATI, Interakt).
+                Flought routes messages through your chosen Business Solution Provider.
               </p>
               
-              <form className="settings-form" onSubmit={(e) => e.preventDefault()}>
-                <div className="form-group">
-                  <label>Provider</label>
-                  <select defaultValue="interakt">
-                    <option value="interakt">Interakt</option>
-                    <option value="wati">WATI</option>
-                    <option value="cloud_api">WhatsApp Cloud API (Direct)</option>
-                  </select>
-                </div>
-                
-                {/* VibeSec: Never expose API keys or secrets in the client-side UI if possible. 
-                    If they must be entered, use password inputs and don't return them from API. */}
-                <div className="form-group">
-                  <label>API Key / Access Token</label>
-                  <input type="password" placeholder="••••••••••••••••••••••••" />
-                  <span className="text-gray" style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                    Stored securely. Leave blank to keep current key.
-                  </span>
-                </div>
-                
-                <div className="form-group">
-                  <label>Webhook URL (to configure in your BSP)</label>
-                  <div className="webhook-box">
-                    <code className="font-record">https://api.flought.in/v1/webhooks/{tenant?.id || 'tenant_12345'}</code>
-                    <button type="button" className="btn">Copy</button>
+              {loadingBsp ? (
+                <div className="text-gray">Loading configuration...</div>
+              ) : (
+                <form className="settings-form" onSubmit={handleSaveBsp}>
+                  <div className="form-group">
+                    <label>Provider</label>
+                    <select 
+                      value={bspForm.provider}
+                      onChange={e => setBspForm({...bspForm, provider: e.target.value})}
+                    >
+                      <option value="gupshup">Gupshup</option>
+                      <option value="interakt">Interakt</option>
+                      <option value="wati">WATI</option>
+                    </select>
                   </div>
-                </div>
-                
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Save BSP Settings</button>
-                </div>
-              </form>
+                  
+                  <div className="form-group">
+                    <label>WABA ID (WhatsApp Business Account ID)</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={bspForm.waba_id}
+                      onChange={e => setBspForm({...bspForm, waba_id: e.target.value})}
+                      placeholder="e.g. 10934892837" 
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Phone Number ID</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={bspForm.phone_id}
+                      onChange={e => setBspForm({...bspForm, phone_id: e.target.value})}
+                      placeholder="e.g. 10582930291" 
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>API Key / Access Token</label>
+                    <input 
+                      type="password" 
+                      value={bspForm.api_key}
+                      onChange={e => setBspForm({...bspForm, api_key: e.target.value})}
+                      placeholder={bspConfig ? "••••••••••••••••••••••••" : "Paste your API key here"} 
+                    />
+                    <span className="text-gray" style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                      {bspConfig ? "Stored securely. Leave blank to keep current key." : "Required for initial setup."}
+                    </span>
+                  </div>
+                  
+                  {bspConfig?.webhook_verify_token && (
+                    <div className="form-group">
+                      <label>Webhook Verify Token</label>
+                      <div className="webhook-box">
+                        <code className="font-record text-green-400">{bspConfig.webhook_verify_token}</code>
+                      </div>
+                      <span className="text-gray" style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                        Configure this token in your BSP dashboard.
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={savingBsp}>
+                      {savingBsp ? 'Saving...' : 'Save BSP Settings'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 

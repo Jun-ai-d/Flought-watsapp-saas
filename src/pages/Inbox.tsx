@@ -32,6 +32,7 @@ const Inbox: React.FC = () => {
       let query = supabase
         .from('conversations')
         .select('*')
+        .eq('tenant_id', tenant.id)
         .order('last_message_at', { ascending: false });
         
       if (filter !== 'all') {
@@ -176,7 +177,7 @@ const Inbox: React.FC = () => {
 
       setReplyText('');
       setMessages([...messages, { 
-        id: Date.now().toString(), 
+        id: crypto.randomUUID(), 
         direction: 'outbound', 
         message_type: 'text',
         content: replyText,

@@ -15,6 +15,11 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 
+// Legal Pages
+const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
+const RefundPolicy = lazy(() => import('./pages/legal/RefundPolicy'));
+
 
 
 const LoadingSpinner = () => (
@@ -31,11 +36,15 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/showcase" element={<DesignShowcase />} />
+        
+        {/* Legal Routes */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/refund" element={<RefundPolicy />} />
 
         {/* Protected Dashboard Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
-            <Route index element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/faqs" element={<FAQManager />} />

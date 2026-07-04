@@ -11,11 +11,14 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
+import bspRoutes from './routes/bsp';
+
 // Routes
 app.use('/webhooks', webhooksRouter);
 app.use('/api', outboundRouter);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/bsp', bspRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

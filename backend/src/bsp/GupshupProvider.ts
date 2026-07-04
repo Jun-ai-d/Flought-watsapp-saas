@@ -9,7 +9,7 @@ export class GupshupProvider implements BSPProvider {
     content: SessionMessageContent;
     providerConfig: Record<string, any>;
   }): Promise<SendResult> {
-    const { to, content, providerConfig } = params;
+    const { tenantId, to, content, providerConfig } = params;
     
     console.log(`[Gupshup] Sending session message to ${to}`);
     const apiKey = providerConfig.gupshup_api_key || process.env.GUPSHUP_API_KEY;

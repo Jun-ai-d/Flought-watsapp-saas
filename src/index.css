@@ -40,3 +40,23 @@ button, input, select, textarea {
   font-family: inherit;
   border-radius: 0; /* Ledger flat */
 }
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+.animate-gradient-x {
+  background-size: 200% auto;
+  animation: gradientX 5s ease infinite;
+}
+
+@keyframes gradientX {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
