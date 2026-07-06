@@ -16,6 +16,8 @@ export interface SendTemplateJobData {
 }
 
 export const initBroadcasterWorkers = async () => {
+  // Create queue first (pg-boss v10+ requires explicit queue creation)
+  await boss.createQueue('send-template-message');
   // We allow multiple concurrent jobs for high throughput
   await boss.work<SendTemplateJobData>('send-template-message', { batchSize: 50 }, async (jobs) => {
     for (const job of jobs) {
