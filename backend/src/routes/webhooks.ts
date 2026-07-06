@@ -52,12 +52,14 @@ router.post('/meta', async (req, res) => {
       if (signature !== expectedSignature) {
         // Log invalid signature to DB for debugging
         const { supabaseAdmin } = require('../lib/supabase');
-        await supabaseAdmin.from('contacts').insert({
-          tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
-          phone_number: 'DEBUG_SIG_FAIL_' + Date.now(),
-          name: `Expected: ${expectedSignature}, Got: ${signature}`,
-          notes: `Raw body length: ${((req as any).rawBody || '').length}. Secret set: ${!!appSecret}`
-        }).catch(console.error);
+        try {
+          await supabaseAdmin.from('contacts').insert({
+            tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+            phone_number: 'DEBUG_SIG_FAIL_' + Date.now(),
+            name: `Expected: ${expectedSignature}, Got: ${signature}`,
+            notes: `Raw body length: ${((req as any).rawBody || '').length}. Secret set: ${!!appSecret}`
+          });
+        } catch (e) { console.error(e); }
         
         return res.status(401).send('Unauthorized: Invalid Signature');
       }
@@ -72,12 +74,14 @@ router.post('/meta', async (req, res) => {
     // Process asynchronously
     // Log success to DB for debugging
     const { supabaseAdmin } = require('../lib/supabase');
-    await supabaseAdmin.from('contacts').insert({
-      tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
-      phone_number: 'DEBUG_SUCCESS_' + Date.now(),
-      name: 'Webhook passed verification',
-      notes: `Payload: ${JSON.stringify(payload)}`
-    }).catch(console.error);
+    try {
+      await supabaseAdmin.from('contacts').insert({
+        tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+        phone_number: 'DEBUG_SUCCESS_' + Date.now(),
+        name: 'Webhook passed verification',
+        notes: `Payload: ${JSON.stringify(payload)}`
+      });
+    } catch (e) { console.error(e); }
 
     await handleInboundWebhook('meta', headers, payload);
     
@@ -85,12 +89,14 @@ router.post('/meta', async (req, res) => {
     console.error('Error processing Meta webhook:', { error, trace_id: req.traceId });
     // Log error to DB for debugging
     const { supabaseAdmin } = require('../lib/supabase');
-    await supabaseAdmin.from('contacts').insert({
-      tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
-      phone_number: 'DEBUG_ERROR_' + Date.now(),
-      name: error.message || 'Unknown error',
-      notes: error.stack
-    }).catch(console.error);
+    try {
+      await supabaseAdmin.from('contacts').insert({
+        tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+        phone_number: 'DEBUG_ERROR_' + Date.now(),
+        name: error.message || 'Unknown error',
+        notes: error.stack
+      });
+    } catch (e) { console.error(e); }
   }
 });
 
