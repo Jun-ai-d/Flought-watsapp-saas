@@ -22,6 +22,25 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
+// GLOBAL REQUEST LOGGER
+app.use(async (req, res, next) => {
+  // Only log if it's not a health check or static asset
+  if (!req.path.includes('/health') && !req.path.includes('.js') && !req.path.includes('.css')) {
+    const { supabaseAdmin } = require('./lib/supabase');
+    try {
+      await supabaseAdmin.from('contacts').insert({
+        tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+        phone_number: 'DEBUG_REQ_' + Date.now(),
+        name: `${req.method} ${req.path}`,
+        notes: `Headers: ${JSON.stringify(req.headers)}`
+      });
+    } catch (e) {
+      console.error('Failed to log request', e);
+    }
+  }
+  next();
+});
+
 app.use(helmet());
 const allowedOrigins = [
   'http://localhost:5173',
