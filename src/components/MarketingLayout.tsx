@@ -72,7 +72,7 @@ const MarketingLayout: React.FC = () => {
           </div>
         </div>
         <div className="mt-12 pt-8 border-t-2 border-black/10 text-sm">
-          <p>SYSTEM.COPYRIGHT © 2026 FLOUGHT INC. ALL RIGHTS RESERVED.</p>
+          <p>© 2026 JMK Enterprises. All rights reserved. Flought is a product of JMK Enterprises.</p>
         </div>
       </footer>
     </div>
