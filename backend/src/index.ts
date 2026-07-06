@@ -31,6 +31,10 @@ const allowedOrigins = [
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : [])
 ];
 
+// Webhooks do not need CORS and can be triggered by external servers (Meta) with foreign Origin headers.
+// Placing this before CORS prevents Meta webhooks from being rejected with 500 errors.
+app.use('/webhooks', webhooksRouter);
+
 app.use(cors({ 
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
@@ -67,9 +71,7 @@ const apiLimiter = rateLimit({
 // Apply API limiter to all /api routes
 app.use('/api', apiLimiter);
 
-
 // Routes
-app.use('/webhooks', webhooksRouter);
 app.use('/api/outbound', outboundRouter);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
