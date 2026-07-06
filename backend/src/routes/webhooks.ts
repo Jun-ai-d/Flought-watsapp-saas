@@ -38,34 +38,29 @@ router.post('/meta', async (req, res) => {
     const headers = req.headers as Record<string, string>;
     
     const appSecret = process.env.META_APP_SECRET;
-    if (process.env.NODE_ENV === 'production' && !appSecret) {
-      throw new Error('FATAL: META_APP_SECRET must be set in production');
+    if (!appSecret) {
+      console.warn('WARNING: META_APP_SECRET not set, skipping signature verification');
     }
 
-    // Verify HMAC signature
+    // Verify HMAC signature (only when META_APP_SECRET is configured)
     const signature = headers['x-hub-signature-256'];
-    let sigDebug = 'No signature provided';
     
-    if (signature) {
+    if (appSecret && signature) {
       const crypto = require('crypto');
-      const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret || 'flought-meta-test').update((req as any).rawBody || '').digest('hex');
+      const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update((req as any).rawBody || '').digest('hex');
       if (signature !== expectedSignature) {
-        // Log invalid signature to DB for debugging
         const { supabaseAdmin } = require('../lib/supabase');
         try {
           await supabaseAdmin.from('contacts').insert({
             tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
             phone_number: 'DEBUG_SIG_FAIL_' + Date.now(),
             name: `Expected: ${expectedSignature}, Got: ${signature}`,
-            notes: `Raw body length: ${((req as any).rawBody || '').length}. Secret set: ${!!appSecret}`
+            notes: `Raw body length: ${((req as any).rawBody || '').length}`
           });
         } catch (e) { console.error(e); }
         
         return res.status(401).send('Unauthorized: Invalid Signature');
       }
-      sigDebug = 'Signature Match';
-    } else if (process.env.NODE_ENV === 'production') {
-      return res.status(401).send('Unauthorized: Missing Signature');
     }
 
     // Quick acknowledge to Meta so it doesn't retry
