@@ -85,10 +85,66 @@ export class MetaProvider implements BSPProvider {
     templateParams: string[];
     providerConfig: Record<string, any>;
   }): Promise<SendResult> {
-    console.warn(`[Meta] sendTemplateMessage is NOT YET IMPLEMENTED. Returning fake success for tenant ${params.tenantId}.`, { tenantId: params.tenantId });
+    const { tenantId, to, templateId, templateParams, providerConfig } = params;
     
+    console.log(`[Meta] Sending template message to ${to}`, { tenantId, to, templateId });
+    
+    const accessToken = providerConfig.access_token_encrypted || process.env.META_ACCESS_TOKEN;
+    const phoneNumberId = providerConfig.phone_number_id || process.env.META_PHONE_NUMBER_ID;
+
+    if (!accessToken || !phoneNumberId) {
+      console.warn(`[Meta] Missing API credentials for tenant ${tenantId}. Faking success for local dev.`, { tenantId });
+      return {
+        bspMessageId: `meta-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        status: 'submitted'
+      };
+    }
+
+    // Map parameters to Meta's expected format
+    // This assumes simple text parameters. For media/buttons, more complex mapping is needed.
+    const parameters = templateParams.map(param => ({
+      type: 'text',
+      text: param
+    }));
+
+    const metaMessage: any = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: to,
+      type: 'template',
+      template: {
+        name: templateId, // For Meta, templateId is usually the template name (e.g. 'hello_world')
+        language: {
+          code: 'en_US' // Defaulting to en_US for now, should ideally be dynamic
+        },
+        components: parameters.length > 0 ? [
+          {
+            type: 'body',
+            parameters: parameters
+          }
+        ] : []
+      }
+    };
+
+    const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(metaMessage)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Meta API Error] ${response.status} ${errorText}`, { status: response.status });
+      throw new Error(`Meta API Error: ${response.status} ${errorText}`);
+    }
+
+    const responseData = await response.json() as any;
+
     return {
-      bspMessageId: `meta-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      bspMessageId: responseData?.messages?.[0]?.id || `meta-${Date.now()}`,
       status: 'submitted'
     };
   }
