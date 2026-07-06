@@ -471,11 +471,14 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
         })
       });
       
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || errBody.error || `HTTP ${res.status}`);
+      }
       alert('WhatsApp Configuration saved successfully!');
       setBspForm(prev => ({ ...prev, api_key: '' })); // clear the key field
-    } catch (err) {
-      alert('Failed to save WhatsApp configuration.');
+    } catch (err: any) {
+      alert(`Failed to save WhatsApp configuration.\n\nError: ${err.message}`);
     } finally {
       setSavingBsp(false);
     }

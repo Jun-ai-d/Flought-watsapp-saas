@@ -116,9 +116,9 @@ router.post('/bsp', async (req: Request, res: Response) => {
     if (error) throw error;
     
     res.json(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving BSP config:', error);
-    res.status(500).json({ error: 'Failed to save BSP configuration' });
+    res.status(500).json({ error: 'Failed to save BSP configuration', detail: error?.message || String(error), code: error?.code });
   }
 });
 
