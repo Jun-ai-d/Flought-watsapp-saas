@@ -106,13 +106,9 @@ router.get('/meta', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  const verifyToken = process.env.META_VERIFY_TOKEN;
-  if (process.env.NODE_ENV === 'production' && !verifyToken) {
-    console.error('FATAL: META_VERIFY_TOKEN must be set in production');
-    return res.sendStatus(500);
-  }
+  const verifyToken = process.env.META_VERIFY_TOKEN || 'flought-meta-test';
   
-  if (mode === 'subscribe' && token === (verifyToken || 'flought-meta-test')) {
+  if (mode === 'subscribe' && token === verifyToken) {
     console.log('WEBHOOK_VERIFIED', { trace_id: req.traceId });
     res.status(200).send(challenge);
   } else {
