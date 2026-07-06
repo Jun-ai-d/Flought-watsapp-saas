@@ -17,7 +17,7 @@ const Signup: React.FC = () => {
     // 1. Check if domain is eligible for another trial
     const { data: isEligible, error: rpcError } = await supabase.rpc('check_domain_eligibility', {
       p_email: email
-    });
+    } as never);
 
     if (rpcError) {
       console.error(rpcError);

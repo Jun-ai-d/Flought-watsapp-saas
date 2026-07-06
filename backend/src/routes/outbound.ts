@@ -110,7 +110,7 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
     
     // 5. Track message usage (only if sent to WhatsApp)
     if (!isInternal) {
-      await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
+      try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }); } catch (e) { console.error(e); }
     }
 
     res.json({ success: true, result: sendResult || { bspMessageId } });
@@ -186,7 +186,7 @@ router.post('/send-template', requireTenantMember, async (req, res) => {
       wa_message_id: sendResult.bspMessageId
     });
 
-    await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
+    try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }); } catch (e) { console.error(e); }
 
     res.json({ success: true, result: sendResult });
   } catch (error: any) {

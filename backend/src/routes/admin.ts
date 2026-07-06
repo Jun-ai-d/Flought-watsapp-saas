@@ -92,7 +92,7 @@ router.get('/metrics', async (req, res) => {
     }
 
     // Income
-    const mrr = (subsRes.data || []).reduce((acc, sub) => acc + Number(sub.price_inr), 0);
+    const mrr = (subsRes.data || []).reduce((acc: number, sub: any) => acc + Number(sub.price_inr), 0);
     
     // API Costs
     let totalMessages = 0;
@@ -112,7 +112,7 @@ router.get('/metrics', async (req, res) => {
 
     // Fixed Expenses
     const expensesList = expensesRes.data || [];
-    const fixedExpenses = expensesList.reduce((acc, exp) => acc + Number(exp.amount_inr), 0);
+    const fixedExpenses = expensesList.reduce((acc: number, exp: any) => acc + Number(exp.amount_inr), 0);
 
     const totalExpenses = apiCosts + fixedExpenses;
     const netProfit = mrr - totalExpenses;

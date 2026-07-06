@@ -76,7 +76,7 @@ router.post('/create-subscription', requireTenantMember, async (req: Request, re
       notes: {
         tenant_id: tenantId
       }
-    });
+    } as any) as any;
 
     res.json({
       subscription_id: subscription.id,
@@ -101,7 +101,8 @@ router.post('/webhook', async (req: Request, res: Response) => {
   
   // Verify Webhook Signature
   const shasum = crypto.createHmac('sha256', secret || 'flought_secret');
-  shasum.update(JSON.stringify(req.body));
+  const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+  shasum.update(rawBody);
   const digest = shasum.digest('hex');
 
   if (digest !== req.headers['x-razorpay-signature']) {

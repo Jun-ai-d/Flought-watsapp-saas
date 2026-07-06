@@ -89,7 +89,7 @@ export async function processAutomationPipeline(
   const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory);
 
   // Track LLM Usage
-  await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_llm_calls: 1 }).catch(e => console.error(e));
+  try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_llm_calls: 1 }); } catch (e) { console.error(e); }
 
   if (llmResponse.confidence !== 'high') {
     console.log(`[Pipeline] LLM returned low confidence.`);
@@ -164,7 +164,7 @@ async function sendBotReply(
   });
   
   // Track message usage
-  await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
+  try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }); } catch (e) { console.error(e); }
 
   // 3. Save outbound message to database
   const { error } = await supabaseAdmin

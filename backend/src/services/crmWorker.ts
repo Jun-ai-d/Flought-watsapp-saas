@@ -9,7 +9,7 @@ export interface SyncCRMJob {
 }
 
 export const initCrmWorkers = async () => {
-  await boss.work<SyncCRMJob>('sync-crm', { teamSize: 5, teamConcurrency: 5 }, async (jobs) => {
+  await boss.work<SyncCRMJob>('sync-crm', { batchSize: 5 }, async (jobs) => {
     for (const job of jobs) {
       await processCRMSync(job);
     }

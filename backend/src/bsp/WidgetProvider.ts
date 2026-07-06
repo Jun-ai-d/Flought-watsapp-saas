@@ -1,4 +1,4 @@
-import { BSPProvider, NormalizedInboundMessage, OutboundMessagePayload } from './BSPProvider';
+import { BSPProvider, NormalizedInboundMessage, SendResult, TemplateStatus } from './BSPProvider';
 
 /**
  * A mock provider for the web chat widget used in the Free Trial Tier.
@@ -18,22 +18,33 @@ export class WidgetProvider implements BSPProvider {
     return true; // Not applicable for the dashboard widget
   }
 
-  async sendSessionMessage(payload: OutboundMessagePayload): Promise<{ success: boolean; bspMessageId: string }> {
+  async sendSessionMessage(payload: any): Promise<SendResult> {
     // Simulate a successful send
     return {
-      success: true,
+      status: 'submitted',
       bspMessageId: `widget_reply_${Date.now()}`
     };
   }
 
-  async sendTemplateMessage(payload: any): Promise<{ success: boolean; bspMessageId: string }> {
+  async submitTemplate(params: any): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
     return {
-      success: true,
-      bspMessageId: `widget_template_${Date.now()}`
+      bspTemplateId: `widget_template_id_${Date.now()}`,
+      status: 'approved'
     };
   }
 
-  async getAccountStatus(tenantId: string): Promise<{ status: string; quality_rating?: string }> {
-    return { status: 'active', quality_rating: 'GREEN' };
+  async sendTemplateMessage(payload: any): Promise<SendResult> {
+    return {
+      status: 'submitted',
+      bspMessageId: `widget_template_${Date.now()}`
+    };
+  }
+  
+  async listTemplates(providerConfig: Record<string, any>): Promise<TemplateStatus[]> {
+    return [];
+  }
+
+  async getAccountHealth(providerConfig: Record<string, any>): Promise<{ tier: number; qualityRating: 'green' | 'yellow' | 'red' }> {
+    return { tier: 1, qualityRating: 'green' };
   }
 }

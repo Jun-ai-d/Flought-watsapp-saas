@@ -95,7 +95,7 @@ export const WebChatWidget: React.FC = () => {
         .limit(1);
 
       if (data && data.length > 0) {
-        const latestMsg = data[0];
+        const latestMsg = data[0] as any;
         setMessages(prev => {
           if (prev.some(m => m.id === latestMsg.id)) {
             return prev;

@@ -24,9 +24,14 @@ export async function matchFAQ(tenantId: string, query: string): Promise<FAQMatc
     
     if (isMatch) {
       // Increment match count asynchronously
-      supabaseAdmin.rpc('increment_faq_match', { faq_id: faq.id }).then(({ error }) => {
-        if (error) console.error('RPC Error:', error);
-      });
+      void (async () => {
+        try {
+          const { error } = await supabaseAdmin.rpc('increment_faq_match', { faq_id: faq.id });
+          if (error) console.error('RPC Error:', error);
+        } catch (e) {
+          console.error('Network Error during RPC:', e);
+        }
+      })();
       return { matched: true, answer: faq.answer, faqId: faq.id };
     }
   }

@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { 
-  Server, Users, PlusCircle, Settings, X, 
-  TrendingUp, MessageSquare, Building, 
+  Users, PlusCircle, Settings, X, 
+  Building,
   MoreVertical, Power, Edit3, CheckCircle2,
   ChevronDown, ChevronUp, User, CreditCard, Calendar
 } from 'lucide-react';

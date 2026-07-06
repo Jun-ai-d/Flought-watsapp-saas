@@ -14,7 +14,7 @@ export const extractPhoneFromRow = (row: any): string => {
   // 2. Fallback: Search all values in the row for something that resembles a phone number
   for (const k of keys) {
     const val = String(row[k]).trim();
-    const strippedVal = val.replace(/[\s\-\(\)\+x\.]/g, ''); // Remove spaces, hyphens, parens, +, x, dots
+    const strippedVal = val.replace(/[\s\-(\)+x.]/g, ''); // Remove spaces, hyphens, parens, +, x, dots
     
     // If it has between 8 and 20 digits, it's likely a phone number
     if (strippedVal.length >= 8 && strippedVal.length <= 20 && /^\d+$/.test(strippedVal)) {
@@ -23,7 +23,7 @@ export const extractPhoneFromRow = (row: any): string => {
 
     // Edge case: If the CSV had no headers, PapaParse uses the first row's data as the keys.
     // So the key itself might be the phone number (for the first row) or row[k] for subsequent rows.
-    const strippedKey = k.replace(/[\s\-\(\)\+x\.]/g, '');
+    const strippedKey = k.replace(/[\s\-(\)+x.]/g, '');
     if (strippedKey.length >= 8 && strippedKey.length <= 20 && /^\d+$/.test(strippedKey)) {
        return val; 
     }
@@ -64,6 +64,6 @@ export const extractNameFromRow = (row: any): string => {
  */
 export const isValidWhatsAppFormat = (phone: string): boolean => {
   if (!phone) return false;
-  const stripped = phone.replace(/[\s\-\(\)\.]/g, ''); // Allow stripping standard visual separators
+  const stripped = phone.replace(/[\s\-(\).]/g, ''); // Allow stripping standard visual separators
   return /^\+?[1-9]\d{7,14}$/.test(stripped);
 };

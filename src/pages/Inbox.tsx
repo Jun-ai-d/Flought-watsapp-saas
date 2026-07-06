@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, MessageSquare, AlertCircle, Bot, User, Send, X, Check, ArrowLeft, FileText, ShoppingBag, Trash2 } from 'lucide-react';
+import { Search, MessageSquare, AlertCircle, Bot, User, Send, X, Check, ArrowLeft, ShoppingBag, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -228,14 +228,15 @@ const Inbox: React.FC = () => {
     }
   };
 
-  const toggleRow = (id: string, e: React.MouseEvent) => {
+  const toggleRow = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter(selectedId => selectedId !== id);
+      }
+      return [...prev, id];
+    });
+  }, []);
 
   const sendTemplateMutation = useMutation({
     mutationFn: async () => {
@@ -518,7 +519,7 @@ const Inbox: React.FC = () => {
         </div>
       </li>
     ));
-  }, [loading, conversations, selectedId, filter, deptFilter, searchTerm, formatTime, viewingAgents, selectedIds]);
+  }, [loading, conversations, selectedId, filter, deptFilter, searchTerm, formatTime, viewingAgents, selectedIds, toggleRow]);
 
   const memoizedMessages = useMemo(() => {
     if (messages.length === 0) {

@@ -14,8 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Save, Plus, Play, Square, MessageSquare, Zap } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Save, Plus, MessageSquare, Zap } from 'lucide-react';
 
 // --- Custom Nodes ---
 
@@ -173,12 +172,12 @@ export default function FlowBuilder() {
       };
 
       if (flowId) {
-        const { error } = await supabase.from('bot_flows').update(payload).eq('id', flowId);
+        const { error } = await supabase.from('bot_flows').update(payload as never).eq('id', flowId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('bot_flows').insert(payload).select().single();
+        const { data, error } = await supabase.from('bot_flows').insert(payload as never).select().single();
         if (error) throw error;
-        if (data) setFlowId(data.id);
+        if (data) setFlowId((data as any).id);
       }
       alert('Flow saved successfully!');
     } catch (err) {

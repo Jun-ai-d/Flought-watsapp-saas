@@ -92,7 +92,7 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
 
   if (msg.type === 'audio' && transcript) {
     // Track STT usage (assume average 0.5 mins per voice note for MVP)
-    await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_stt_minutes: 0.5 }).catch(e => console.error(e));
+    try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_stt_minutes: 0.5 }); } catch (e) { console.error(e); }
   }
 
   console.log(`✅ Processed inbound message from ${msg.fromPhone}`);

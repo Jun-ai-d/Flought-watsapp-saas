@@ -17,7 +17,7 @@ export interface SendTemplateJobData {
 
 export const initBroadcasterWorkers = async () => {
   // We allow multiple concurrent jobs for high throughput
-  await boss.work<SendTemplateJobData>('send-template-message', { teamSize: 50, teamConcurrency: 5 }, async (jobs) => {
+  await boss.work<SendTemplateJobData>('send-template-message', { batchSize: 50 }, async (jobs) => {
     for (const job of jobs) {
       const { data, id: jobId } = job;
       try {

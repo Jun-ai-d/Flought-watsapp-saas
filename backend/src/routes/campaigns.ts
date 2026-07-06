@@ -143,7 +143,9 @@ router.post('/:tenantId/:campaignId/enroll', requireTenantMember, async (req: Re
     }
 
     if (jobs.length > 0) {
-      await boss.insert(jobs);
+      for (const job of jobs) {
+        await boss.insert(job.name, job.data, job.options);
+      }
     }
 
     res.status(202).json({ status: 'queued', enrolledCount: enrollments.length, scheduledJobs: jobs.length });

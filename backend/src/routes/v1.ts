@@ -133,7 +133,7 @@ router.post('/messages/send', async (req: ApiAuthRequest, res) => {
     }
     
     // 5. Track message usage
-    await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }).catch(e => console.error(e));
+    try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }); } catch (e) { console.error(e); }
 
     res.json({ success: true, result: sendResult });
   } catch (error: any) {
