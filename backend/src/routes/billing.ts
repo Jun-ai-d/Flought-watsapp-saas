@@ -98,15 +98,26 @@ router.post('/webhook', async (req: Request, res: Response) => {
     console.error('FATAL: RAZORPAY_WEBHOOK_SECRET missing in production');
     return res.status(500).json({ error: 'Configuration Error' });
   }
-  
-  // Verify Webhook Signature
-  const shasum = crypto.createHmac('sha256', secret || 'flought_secret');
-  const rawBody = (req as any).rawBody || JSON.stringify(req.body);
-  shasum.update(rawBody);
-  const digest = shasum.digest('hex');
 
-  if (digest !== req.headers['x-razorpay-signature']) {
-    return res.status(400).json({ error: 'Invalid signature' });
+  const signature = req.headers['x-razorpay-signature'] as string;
+  const body = (req as any).rawBody || JSON.stringify(req.body);
+
+  if (!signature) {
+    return res.status(400).send('Missing signature');
+  }
+
+  // Use the secret if available, otherwise fallback to the dev mock secret
+  const activeSecret = secret || 'flought_secret';
+
+  try {
+    const isValid = Razorpay.validateWebhookSignature(body, signature, activeSecret);
+    if (!isValid) {
+      console.error('Razorpay webhook signature mismatch');
+      return res.status(400).send('Invalid signature');
+    }
+  } catch (err) {
+    console.error('Error validating Razorpay signature:', err);
+    return res.status(400).send('Invalid signature format');
   }
 
   const event = req.body.event;

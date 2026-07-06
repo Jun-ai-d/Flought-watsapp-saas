@@ -144,7 +144,7 @@ async function sendBotReply(
     .eq('direction', 'inbound')
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (latestInbound) {
     const hoursSinceLastMessage = (Date.now() - new Date(latestInbound.created_at).getTime()) / (1000 * 60 * 60);
@@ -154,13 +154,20 @@ async function sendBotReply(
     }
   }
 
+  // Decrypt config before passing to provider
+  const decryptedConfig = { ...config };
+  if (decryptedConfig?.access_token_encrypted) {
+    const { decryptToken } = require('../../bsp/crypto');
+    decryptedConfig.access_token_encrypted = decryptToken(decryptedConfig.access_token_encrypted);
+  }
+
   // 2. Dispatch to BSP
   const provider = getBSPProvider(providerName);
   const sendResult = await provider.sendSessionMessage({
     tenantId,
     to: toPhone,
     content: { type: 'text', text },
-    providerConfig: config || {} 
+    providerConfig: decryptedConfig || {} 
   });
   
   // Track message usage

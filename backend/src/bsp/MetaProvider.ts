@@ -39,7 +39,7 @@ export class MetaProvider implements BSPProvider {
       metaMessage[content.type] = { link: content.mediaUrl };
     }
 
-    const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -69,11 +69,56 @@ export class MetaProvider implements BSPProvider {
     body: string;
     providerConfig: Record<string, any>;
   }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
-    console.log(`[Meta] Simulating template submission: ${params.name}`, { tenantId: params.tenantId });
-    // In production, call POST to graph.facebook.com/v19.0/{WABA_ID}/message_templates
+    const { tenantId, name, category, body, providerConfig } = params;
+    console.log(`[Meta] Submitting template: ${name}`, { tenantId });
+    
+    const accessToken = providerConfig.access_token_encrypted || process.env.META_ACCESS_TOKEN;
+    const wabaId = providerConfig.waba_id;
+
+    if (!accessToken || !wabaId) {
+      console.warn(`[Meta] Missing WABA ID or Access Token for tenant ${tenantId}. Faking success.`, { tenantId });
+      return {
+        bspTemplateId: `meta-tpl-${Date.now()}`,
+        status: 'approved'
+      };
+    }
+
+    // Map category to Meta's uppercase format
+    const metaCategory = category.toUpperCase();
+
+    const templateData = {
+      name: name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+      language: 'en_US',
+      category: metaCategory,
+      components: [
+        {
+          type: 'BODY',
+          text: body
+        }
+      ]
+    };
+
+    const response = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(templateData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Meta API Error] ${response.status} ${errorText}`, { status: response.status });
+      throw new Error(`Meta API Error: ${response.status} ${errorText}`);
+    }
+
+    const responseData = await response.json() as any;
+
     return {
-      bspTemplateId: `meta-tpl-${Date.now()}`,
-      status: 'approved' // Automatically approve for simulation
+      bspTemplateId: responseData.id || name, // Meta returns the template ID in the response
+      status: responseData.status === 'APPROVED' ? 'approved' : 
+              responseData.status === 'REJECTED' ? 'rejected' : 'pending'
     };
   }
 
@@ -126,7 +171,7 @@ export class MetaProvider implements BSPProvider {
       }
     };
 
-    const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,

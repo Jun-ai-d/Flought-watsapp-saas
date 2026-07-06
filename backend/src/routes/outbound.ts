@@ -43,7 +43,7 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
         .eq('direction', 'inbound')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (latestInbound) {
         const hoursSinceLastMessage = (Date.now() - new Date(latestInbound.created_at).getTime()) / (1000 * 60 * 60);
@@ -53,12 +53,16 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
       }
 
       // 2. Load provider config for this tenant
-      const { data: config } = await supabaseAdmin
+      const { data: config, error: configError } = await supabaseAdmin
         .from('tenant_bsp_config')
         .select('*')
         .eq('tenant_id', tenantId)
         .eq('bsp_provider', providerName)
         .single();
+
+      if (configError || !config) {
+        return res.status(400).json({ error: 'No WhatsApp configuration found. Please complete setup in Settings.' });
+      }
 
       // 3. Dispatch to BSP
       const provider = getBSPProvider(providerName);

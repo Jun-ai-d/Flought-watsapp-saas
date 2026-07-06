@@ -43,7 +43,10 @@ router.post('/shopify/webhook', async (req: any, res: any) => {
       .update(rawBody)
       .digest('base64');
 
-    if (genHash !== hmacHeader) {
+    const sigBuffer = Buffer.from(hmacHeader);
+    const expectedBuffer = Buffer.from(genHash);
+
+    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
       console.warn(`Shopify HMAC mismatch for tenant ${tenantId}`);
       return res.status(401).send('Unauthorized');
     }

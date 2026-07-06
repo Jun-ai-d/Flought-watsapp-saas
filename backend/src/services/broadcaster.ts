@@ -68,6 +68,9 @@ export const initBroadcasterWorkers = async () => {
         console.error('Failed to process broadcast job', { jobId, phone: data.contactPhone, error, trace_id: data.traceId });
         throw error; // Let pg-boss handle retries
       }
+      
+      // Rate limit to ~12 msgs/sec to stay well under Meta's typical rate limit limits
+      await new Promise(r => setTimeout(r, 80));
     }
   });
 };

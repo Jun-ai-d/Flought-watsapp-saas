@@ -38,8 +38,13 @@ router.post('/meta', async (req, res) => {
     const headers = req.headers as Record<string, string>;
     
     const appSecret = process.env.META_APP_SECRET;
+    
     if (!appSecret) {
-      console.warn('WARNING: META_APP_SECRET not set, skipping signature verification');
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(500).json({ error: 'Server misconfigured: META_APP_SECRET not set' });
+      } else {
+        console.warn('WARNING: META_APP_SECRET not set, skipping signature verification in dev');
+      }
     }
 
     // Verify HMAC signature (only when META_APP_SECRET is configured)
@@ -48,50 +53,26 @@ router.post('/meta', async (req, res) => {
     if (appSecret && signature) {
       const crypto = require('crypto');
       const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update((req as any).rawBody || '').digest('hex');
-      if (signature !== expectedSignature) {
-        const { supabaseAdmin } = require('../lib/supabase');
-        try {
-          await supabaseAdmin.from('contacts').insert({
-            tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
-            phone_number: 'DEBUG_SIG_FAIL_' + Date.now(),
-            name: `Expected: ${expectedSignature}, Got: ${signature}`,
-            notes: `Raw body length: ${((req as any).rawBody || '').length}`
-          });
-        } catch (e) { console.error(e); }
-        
-        return res.status(401).send('Unauthorized: Invalid Signature');
+      
+      const sigBuffer = Buffer.from(signature);
+      const expectedBuffer = Buffer.from(expectedSignature);
+
+      if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+        console.error(`Webhook signature mismatch. Expected: ${expectedSignature}, Got: ${signature}`);
+        return res.status(401).send('Invalid signature');
       }
+    } else if (appSecret && !signature) {
+      return res.status(401).send('Missing signature');
     }
 
     // Quick acknowledge to Meta so it doesn't retry
     res.status(200).send('EVENT_RECEIVED');
 
     // Process asynchronously
-    // Log success to DB for debugging
-    const { supabaseAdmin } = require('../lib/supabase');
-    try {
-      await supabaseAdmin.from('contacts').insert({
-        tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
-        phone_number: 'DEBUG_SUCCESS_' + Date.now(),
-        name: 'Webhook passed verification',
-        notes: `Payload: ${JSON.stringify(payload)}`
-      });
-    } catch (e) { console.error(e); }
-
     await handleInboundWebhook('meta', headers, payload);
     
   } catch (error: any) {
     console.error('Error processing Meta webhook:', { error, trace_id: req.traceId });
-    // Log error to DB for debugging
-    const { supabaseAdmin } = require('../lib/supabase');
-    try {
-      await supabaseAdmin.from('contacts').insert({
-        tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
-        phone_number: 'DEBUG_ERROR_' + Date.now(),
-        name: error.message || 'Unknown error',
-        notes: error.stack
-      });
-    } catch (e) { console.error(e); }
   }
 });
 
