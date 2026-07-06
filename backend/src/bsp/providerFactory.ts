@@ -1,6 +1,7 @@
 import { BSPProvider } from './BSPProvider';
 import { GupshupProvider } from './GupshupProvider';
 import { MetaProvider } from './MetaProvider';
+import { WidgetProvider } from './WidgetProvider';
 
 const providerInstances = new Map<string, BSPProvider>();
 
@@ -18,6 +19,9 @@ export function getBSPProvider(providerName: string): BSPProvider {
       break;
     case 'meta':
       provider = new MetaProvider();
+      break;
+    case 'widget':
+      provider = new WidgetProvider();
       break;
     default:
       throw new Error(`Unknown BSP provider: ${providerName}`);

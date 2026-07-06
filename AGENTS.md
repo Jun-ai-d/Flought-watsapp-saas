@@ -36,3 +36,15 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+## PONYTAIL METHODOLOGY
+
+**MANDATORY RULE:** This project strictly follows the "Ponytail" engineering methodology.
+Always use the ponytail skills before writing any code. Before implementing a feature:
+1. Ask: Does it need to exist at all (YAGNI)?
+2. Does the standard library do it?
+3. Is it a native platform feature?
+4. Can it be one line?
+5. Build the absolute minimum that works. 
+6. NO unrequested abstractions, NO avoidable dependencies, NO boilerplate.
+This applies to all subplans and future tasks in this repository.

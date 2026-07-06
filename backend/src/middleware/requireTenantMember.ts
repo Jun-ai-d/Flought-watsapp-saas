@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../lib/supabase';
 
 export interface TenantRequest extends Request {
   user?: any;
+  tenantId?: string;
 }
 
 export const requireTenantMember = async (req: TenantRequest, res: Response, next: NextFunction) => {
@@ -18,7 +19,9 @@ export const requireTenantMember = async (req: TenantRequest, res: Response, nex
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  const tenantId = req.body.tenantId || req.params.tenantId || req.query.tenantId;
+  // IDOR Fix: Explicitly resolve tenantId prioritizing params, then query, then body.
+  // We MUST attach this specific resolved ID to the request so routes use the exact authorized ID.
+  const tenantId = req.params.tenantId || req.query.tenantId || req.body.tenantId;
   
   if (!tenantId) {
     return res.status(400).json({ error: 'Missing tenantId in request' });
@@ -37,5 +40,6 @@ export const requireTenantMember = async (req: TenantRequest, res: Response, nex
   }
 
   req.user = user;
+  req.tenantId = tenantId;
   next();
 };

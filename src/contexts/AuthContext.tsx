@@ -17,6 +17,10 @@ interface TenantContext {
   id: string;
   business_name: string;
   role: 'admin' | 'agent';
+  plan_type?: string;
+  trial_expires_at?: string;
+  trial_conversations_used?: number;
+  trial_conversations_limit?: number;
 }
 
 interface AuthContextType {
@@ -50,15 +54,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Find which business this user works for
     const { data, error } = await supabase
       .from('tenant_users')
-      .select('role, tenants (id, business_name)')
+      .select('role, tenants (id, business_name, plan_type, trial_expires_at, trial_conversations_used, trial_conversations_limit)')
       .eq('user_id', userId)
       .single();
 
-    if (data && data.tenants && !error) {
+    if (data && (data as any).tenants && !error) {
       setTenant({
-        id: (data.tenants as any).id,
-        business_name: (data.tenants as any).business_name,
-        role: data.role as 'admin' | 'agent'
+        id: (data as any).tenants.id,
+        business_name: (data as any).tenants.business_name,
+        role: (data as any).role as 'admin' | 'agent',
+        plan_type: (data as any).tenants.plan_type,
+        trial_expires_at: (data as any).tenants.trial_expires_at,
+        trial_conversations_used: (data as any).tenants.trial_conversations_used,
+        trial_conversations_limit: (data as any).tenants.trial_conversations_limit
       });
     } else {
       setTenant(null);

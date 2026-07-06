@@ -1,23 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { CreditCard, Download, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { CreditCard, Download, ExternalLink, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import './Billing.css';
+import { cn } from '../lib/utils';
 
 const Billing: React.FC = () => {
   const { tenant, session } = useAuth();
-  const [sub, setSub] = useState<any>(null);
-  const [usage, setUsage] = useState<any>(null);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-
-  useEffect(() => {
-    if (!tenant) return;
-    
-    const fetchData = async () => {
-      setLoading(true);
-      
+  const { data, isLoading: loading } = useQuery<{ sub: any, usage: any, invoices: any[] }>({
+    queryKey: ['billing', tenant?.id],
+    queryFn: async () => {
       const billingPeriod = new Date();
       billingPeriod.setDate(1);
       const periodStr = billingPeriod.toISOString().split('T')[0];
@@ -26,31 +18,35 @@ const Billing: React.FC = () => {
         supabase
           .from('subscriptions')
           .select('*')
-          .eq('tenant_id', tenant.id)
+          .eq('tenant_id', tenant!.id)
           .eq('status', 'active')
           .single(),
         supabase
           .from('usage_tracking')
           .select('*')
-          .eq('tenant_id', tenant.id)
+          .eq('tenant_id', tenant!.id)
           .eq('billing_period', periodStr)
           .single(),
         supabase
           .from('invoices')
           .select('*')
-          .eq('tenant_id', tenant.id)
+          .eq('tenant_id', tenant!.id)
           .order('created_at', { ascending: false })
       ]);
       
-      if (!subRes.error && subRes.data) setSub(subRes.data);
-      if (!usageRes.error && usageRes.data) setUsage(usageRes.data);
-      if (!invoiceRes.error && invoiceRes.data) setInvoices(invoiceRes.data);
-      
-      setLoading(false);
-    };
-    
-    fetchData();
-  }, [tenant]);
+      return {
+        sub: subRes.data,
+        usage: usageRes.data,
+        invoices: invoiceRes.data || []
+      };
+    },
+    enabled: !!tenant?.id,
+  });
+
+  const sub = data?.sub;
+  const usage = data?.usage;
+  const invoices = data?.invoices || [];
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const handleCheckout = async () => {
     if (!tenant || !session) return;
@@ -90,127 +86,143 @@ const Billing: React.FC = () => {
   const llmPercent = Math.min(100, Math.round((llmCalls / 1500) * 100));
 
   return (
-    <div className="page-container">
-      <div className="page-header">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="flex justify-between items-end">
         <div>
-          <h1 className="page-title">Usage & Billing</h1>
-          <p className="text-gray">Monitor your current billing cycle usage and overage limits.</p>
+          <h1 className="text-3xl font-display font-bold text-theme-text mb-2">Usage & Billing</h1>
+          <p className="text-theme-text-muted">Monitor your current billing cycle usage and overage limits.</p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-          <button 
-            className="btn btn-primary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} 
-            onClick={handleCheckout}
-            disabled={checkoutLoading}
-          >
-            <CreditCard size={18} /> {checkoutLoading ? 'Processing...' : 'Update Payment Method'}
-          </button>
-        </div>
+        <button 
+          className="px-6 py-3 bg-brand-accent text-white font-bold hover:bg-brand-accent-light transition-colors flex items-center gap-2 theme-button shadow-sm disabled:opacity-50"
+          onClick={handleCheckout}
+          disabled={checkoutLoading}
+        >
+          <CreditCard size={18} /> {checkoutLoading ? 'Processing...' : 'Update Payment Method'}
+        </button>
       </div>
 
-      <div className="billing-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Current Plan & Limits */}
-        <div className="content-panel plan-panel">
+        <div className="theme-card p-8 bg-theme-surface h-full">
           {loading ? (
-            <div className="text-gray">Loading subscription details...</div>
-          ) : sub ? (
+            <div className="text-theme-text-muted font-medium py-12 text-center">Loading subscription details...</div>
+          ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem', textTransform: 'capitalize' }}>
-                    Current Plan: {sub.plan}
-                  </h2>
-                  <p className="font-record text-gray">₹{sub.price_inr?.toLocaleString()}/mo</p>
+              {sub ? (
+                <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <h2 className="text-2xl font-display font-bold text-theme-text capitalize mb-1">
+                      Current Plan: {sub.plan}
+                    </h2>
+                    <p className="font-mono text-xl text-theme-text-muted font-bold">₹{sub.price_inr?.toLocaleString()}/mo</p>
+                  </div>
+                  <div className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-xs font-bold uppercase tracking-widest">
+                    ACTIVE
+                  </div>
                 </div>
-                <div className="stamp-badge">ACTIVE</div>
-              </div>
+              ) : (
+                <div className="mb-8 p-6 bg-theme-bg border border-brand-accent/20 flex flex-col sm:flex-row items-center gap-6" style={{ borderRadius: 'var(--radius-card)' }}>
+                  <div className="w-12 h-12 bg-brand-accent/10 text-brand-accent rounded-full flex items-center justify-center shrink-0">
+                    <AlertTriangle size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-display font-bold text-theme-text mb-1">No Active Subscription</h3>
+                    <p className="text-theme-text-muted text-sm font-medium">Please subscribe to unlock outbound messaging and higher limits.</p>
+                  </div>
+                  <button 
+                    className="ml-auto px-6 py-2 bg-brand-accent text-white font-bold hover:bg-brand-accent-light transition-colors theme-button shadow-md disabled:opacity-50 shrink-0" 
+                    onClick={handleCheckout} 
+                    disabled={checkoutLoading}
+                  >
+                    {checkoutLoading ? 'Loading...' : 'Subscribe'}
+                  </button>
+                </div>
+              )}
               
-              <div className="usage-stats">
-                <div className="usage-item">
-                  <div className="usage-header">
-                    <span style={{ fontWeight: 600 }}>Messages Sent</span>
-                    <span className="font-record">{messagesSent.toLocaleString()} / {capMessages.toLocaleString()}</span>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-theme-text">Messages Sent</span>
+                    <span className="font-mono text-sm font-bold text-theme-text-muted">{messagesSent.toLocaleString()} / {capMessages.toLocaleString()}</span>
                   </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill bg-indigo" style={{ width: `${msgPercent}%` }}></div>
+                  <div className="h-3 w-full bg-theme-bg overflow-hidden" style={{ borderRadius: 'var(--radius-button)' }}>
+                    <div className="h-full bg-brand-accent transition-all duration-1000" style={{ width: `${msgPercent}%` }}></div>
                   </div>
-                  <div className="text-gray" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                  <div className="text-theme-text-muted text-xs mt-2 font-medium">
                     Overage rate: ₹0.30 per message
                   </div>
                 </div>
 
-                <div className="usage-item">
-                  <div className="usage-header">
-                    <span style={{ fontWeight: 600 }}>AI RAG Queries (LLM Calls)</span>
-                    <span className="font-record">{llmCalls.toLocaleString()} / 1,500</span>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-theme-text">AI RAG Queries (LLM Calls)</span>
+                    <span className="font-mono text-sm font-bold text-theme-text-muted">{llmCalls.toLocaleString()} / 1,500</span>
                   </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill bg-indigo" style={{ width: `${llmPercent}%` }}></div>
+                  <div className="h-3 w-full bg-theme-bg overflow-hidden" style={{ borderRadius: 'var(--radius-button)' }}>
+                    <div className="h-full bg-brand-accent transition-all duration-1000" style={{ width: `${llmPercent}%` }}></div>
                   </div>
                 </div>
 
-                <div className="usage-item">
-                  <div className="usage-header">
-                    <span style={{ fontWeight: 600 }}>Voice Note Transcription (STT)</span>
-                    <span className="font-record">{sttMinutes} minutes</span>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-theme-text">Voice Note Transcription (STT)</span>
+                    <span className="font-mono text-sm font-bold text-theme-text-muted">{sttMinutes} minutes</span>
                   </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill bg-red" style={{ width: `${Math.min(100, Number(sttMinutes) / 60 * 100)}%` }}></div>
+                  <div className="h-3 w-full bg-theme-bg overflow-hidden" style={{ borderRadius: 'var(--radius-button)' }}>
+                    <div className="h-full bg-red-500 transition-all duration-1000" style={{ width: `${Math.min(100, Number(sttMinutes) / 60 * 100)}%` }}></div>
                   </div>
                 </div>
               </div>
             </>
-          ) : (
-            <div className="text-gray">
-              <p style={{ marginBottom: '1rem' }}>No active subscription found. Please subscribe to unlock outbound messaging.</p>
-              <button className="btn btn-primary" onClick={handleCheckout} disabled={checkoutLoading}>
-                Subscribe Now
-              </button>
-            </div>
           )}
         </div>
 
         {/* Invoice History */}
-        <div className="content-panel invoice-panel">
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Invoice History</h2>
+        <div className="theme-card p-8 bg-theme-surface h-full">
+          <h2 className="text-2xl font-display font-bold text-theme-text mb-6">Invoice History</h2>
           
-          <table className="templates-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Invoice</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="text-gray text-center py-4">No payment history found.</td>
+          <div className="overflow-x-auto rounded-lg border border-theme-border">
+            <table className="w-full text-left border-collapse bg-theme-bg">
+              <thead>
+                <tr className="border-b border-theme-border bg-theme-surface-hover">
+                  <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider">Date</th>
+                  <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider">Amount</th>
+                  <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider">Status</th>
+                  <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider">Invoice</th>
                 </tr>
-              )}
-              {invoices.map((inv) => (
-                <tr key={inv.id}>
-                  <td>{new Date(inv.created_at).toLocaleDateString()}</td>
-                  <td className="font-record">₹{inv.amount_inr?.toLocaleString() || '0'}</td>
-                  <td>
-                    <span className={`status-badge ${inv.status === 'paid' ? 'approved' : 'rejected'}`}>
-                      {inv.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td>
-                    {inv.invoice_url ? (
-                      <a href={inv.invoice_url} target="_blank" rel="noreferrer" className="icon-btn text-indigo">
-                        <ExternalLink size={18} />
-                      </a>
-                    ) : (
-                      <span className="text-gray">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-theme-border">
+                {invoices.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="text-theme-text-muted text-center py-8 font-medium italic">No payment history found.</td>
+                  </tr>
+                )}
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="hover:bg-theme-surface-hover transition-colors">
+                    <td className="py-4 px-4 text-theme-text font-medium">{new Date(inv.created_at).toLocaleDateString()}</td>
+                    <td className="py-4 px-4 font-mono font-bold text-theme-text">₹{inv.amount_inr?.toLocaleString() || '0'}</td>
+                    <td className="py-4 px-4">
+                      <span className={cn(
+                        "px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
+                        inv.status === 'paid' ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
+                      )}>
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      {inv.invoice_url ? (
+                        <a href={inv.invoice_url} target="_blank" rel="noreferrer" className="text-brand-accent hover:text-brand-accent-light p-2 block w-max bg-brand-accent/5 rounded-full transition-colors">
+                          <ExternalLink size={18} />
+                        </a>
+                      ) : (
+                        <span className="text-theme-text-muted">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

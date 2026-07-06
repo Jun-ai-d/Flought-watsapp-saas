@@ -1,8 +1,13 @@
 -- 1. Add missing handover_reason column to conversations
-ALTER TABLE conversations ADD COLUMN handover_reason text;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS handover_reason text;
 
 -- 2. Add unique constraint to prevent race condition duplicates
-ALTER TABLE conversations ADD CONSTRAINT unique_tenant_phone UNIQUE (tenant_id, customer_phone);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_tenant_phone') THEN
+    ALTER TABLE conversations ADD CONSTRAINT unique_tenant_phone UNIQUE (tenant_id, customer_phone);
+  END IF;
+END $$;
 
 -- 3. Create missing RPC to increment FAQ match count
 CREATE OR REPLACE FUNCTION increment_faq_match(faq_id uuid)

@@ -11,6 +11,8 @@ import { supabaseAdmin } from '../lib/supabase';
 import { NormalizedInboundMessage } from '../bsp/BSPProvider';
 import { processAutomationPipeline } from './automation/pipeline';
 import { transcribeAudio } from './llm/stt';
+import { fireOutboundWebhook } from './webhookService';
+// Import removed
 
 /**
  * Parses the raw payload from the BSP and routes it to the specific tenant processing pipeline.
@@ -50,6 +52,10 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
     console.log(`[STT] Transcribing voice note for ${msg.waMessageId}`);
     transcript = await transcribeAudio(msg.mediaUrl);
     messageContent = transcript;
+  }
+  
+  if (msg.type === 'order') {
+    messageContent = '🛍️ Native Commerce Order Received! Please check your Meta Commerce Manager or Shopify for details.';
   }
 
   // Unified Database Transaction: Resolves tenant, manages session, and deduplicates message in a single RPC
@@ -91,12 +97,24 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
 
   console.log(`✅ Processed inbound message from ${msg.fromPhone}`);
   
+  // Trigger outbound webhook for developer integrations (Zapier, custom backend)
+  fireOutboundWebhook(tenantId, {
+    event: 'message.received',
+    data: {
+      from: msg.fromPhone,
+      name: msg.customerName || 'Customer',
+      content: messageContent,
+      type: msg.type,
+      timestamp: msg.timestamp || new Date().toISOString(),
+      conversation_id: conversationId
+    }
+  });
+
   // Step 4: Routing to Automation / AI Pipeline
   // PRD CRITICAL RULE 1: A bot MUST NEVER send an automated message while a conversation is in human handover state.
   
   if (messageContent && currentStatus === 'bot') {
-    // If it's a text/audio message and the bot is active, route to the AI generator.
-    // This is executed asynchronously (.catch) so we can instantly return a 200 OK to the webhook provider.
+    // If it's a text/audio message and the bot is active, route to the AI generator
     processAutomationPipeline(tenantId, conversationId, messageContent, msg.fromPhone, providerName).catch(e => {
       console.error('Error in automation pipeline:', e);
     });

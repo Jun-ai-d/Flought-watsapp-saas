@@ -8,14 +8,21 @@ const router = Router();
 
 // Initialize Razorpay instance
 // In production, these should be securely stored in process.env
+const rzpKeyId = process.env.RAZORPAY_KEY_ID;
+const rzpKeySecret = process.env.RAZORPAY_KEY_SECRET;
+
+if (process.env.NODE_ENV === 'production' && (!rzpKeyId || !rzpKeySecret)) {
+  throw new Error('FATAL: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set in production');
+}
+
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_mock_key',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'rzp_test_mock_secret',
+  key_id: rzpKeyId || 'rzp_test_mock_key',
+  key_secret: rzpKeySecret || 'rzp_test_mock_secret',
 });
 
 // Route: Create a new subscription checkout session
 router.post('/create-subscription', requireTenantMember, async (req: Request, res: Response) => {
-  const { tenantId } = req.body;
+  const tenantId = (req as any).tenantId;
   const { plan_id } = req.body; // e.g. "plan_abc123"
 
   try {
@@ -79,16 +86,21 @@ router.post('/create-subscription', requireTenantMember, async (req: Request, re
 
   } catch (error: any) {
     console.error('Error creating Razorpay subscription:', error);
-    res.status(500).json({ error: error.message || 'Failed to create subscription' });
+    res.status(500).json({ error: 'Failed to create subscription' });
   }
 });
 
 // Webhook to receive events from Razorpay (like payment success)
 router.post('/webhook', async (req: Request, res: Response) => {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'flought_secret';
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  
+  if (process.env.NODE_ENV === 'production' && !secret) {
+    console.error('FATAL: RAZORPAY_WEBHOOK_SECRET missing in production');
+    return res.status(500).json({ error: 'Configuration Error' });
+  }
   
   // Verify Webhook Signature
-  const shasum = crypto.createHmac('sha256', secret);
+  const shasum = crypto.createHmac('sha256', secret || 'flought_secret');
   shasum.update(JSON.stringify(req.body));
   const digest = shasum.digest('hex');
 

@@ -24,12 +24,13 @@ CREATE TABLE IF NOT EXISTS invoices (
 -- RLS policies for invoices
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own invoices" ON invoices;
 CREATE POLICY "Users can view their own invoices"
 ON invoices FOR SELECT
 TO authenticated
 USING (
     tenant_id IN (
-        SELECT tenant_id FROM tenant_members WHERE user_id = auth.uid()
+        SELECT tenant_id FROM tenant_users WHERE user_id = auth.uid()
     )
 );
 

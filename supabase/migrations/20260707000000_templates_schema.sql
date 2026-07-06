@@ -15,20 +15,22 @@ CREATE TABLE IF NOT EXISTS message_templates (
 -- RLS policies for message_templates
 ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their tenant's templates" ON message_templates;
 CREATE POLICY "Users can view their tenant's templates"
 ON message_templates FOR SELECT
 TO authenticated
 USING (
     tenant_id IN (
-        SELECT tenant_id FROM tenant_members WHERE user_id = auth.uid()
+        SELECT tenant_id FROM tenant_users WHERE user_id = auth.uid()
     )
 );
 
+DROP POLICY IF EXISTS "Users can insert templates for their tenant" ON message_templates;
 CREATE POLICY "Users can insert templates for their tenant"
 ON message_templates FOR INSERT
 TO authenticated
 WITH CHECK (
     tenant_id IN (
-        SELECT tenant_id FROM tenant_members WHERE user_id = auth.uid()
+        SELECT tenant_id FROM tenant_users WHERE user_id = auth.uid()
     )
 );

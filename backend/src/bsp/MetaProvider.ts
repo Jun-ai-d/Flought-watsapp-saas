@@ -11,14 +11,14 @@ export class MetaProvider implements BSPProvider {
   }): Promise<SendResult> {
     const { tenantId, to, content, providerConfig } = params;
     
-    console.log(`[Meta] Sending session message to ${to}`);
+    console.log(`[Meta] Sending session message to ${to}`, { tenantId, to });
     
     // For Meta, we need the Phone Number ID and the Access Token
     const accessToken = providerConfig.access_token_encrypted || process.env.META_ACCESS_TOKEN;
     const phoneNumberId = providerConfig.phone_number_id || process.env.META_PHONE_NUMBER_ID;
 
     if (!accessToken || !phoneNumberId) {
-      console.warn(`[Meta] Missing API credentials for tenant ${tenantId}. Faking success for local dev.`);
+      console.warn(`[Meta] Missing API credentials for tenant ${tenantId}. Faking success for local dev.`, { tenantId });
       return {
         bspMessageId: `meta-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         status: 'submitted'
@@ -50,7 +50,7 @@ export class MetaProvider implements BSPProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Meta API Error] ${response.status} ${errorText}`);
+      console.error(`[Meta API Error] ${response.status} ${errorText}`, { status: response.status });
       throw new Error(`Meta API Error: ${response.status} ${errorText}`);
     }
 
@@ -69,7 +69,7 @@ export class MetaProvider implements BSPProvider {
     body: string;
     providerConfig: Record<string, any>;
   }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
-    console.log(`[Meta] Simulating template submission: ${params.name}`);
+    console.log(`[Meta] Simulating template submission: ${params.name}`, { tenantId: params.tenantId });
     // In production, call POST to graph.facebook.com/v19.0/{WABA_ID}/message_templates
     return {
       bspTemplateId: `meta-tpl-${Date.now()}`,
@@ -85,7 +85,7 @@ export class MetaProvider implements BSPProvider {
     templateParams: string[];
     providerConfig: Record<string, any>;
   }): Promise<SendResult> {
-    console.warn(`[Meta] sendTemplateMessage is NOT YET IMPLEMENTED. Returning fake success for tenant ${params.tenantId}.`);
+    console.warn(`[Meta] sendTemplateMessage is NOT YET IMPLEMENTED. Returning fake success for tenant ${params.tenantId}.`, { tenantId: params.tenantId });
     
     return {
       bspMessageId: `meta-${Date.now()}-${Math.random().toString(36).substring(7)}`,

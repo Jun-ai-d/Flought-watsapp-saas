@@ -15,7 +15,7 @@ BEGIN
     RETURNING id INTO new_tenant_id;
 
     -- 2. Add the user as an admin to their new tenant
-    INSERT INTO public.tenant_members (tenant_id, user_id, role, created_at)
+    INSERT INTO public.tenant_users (tenant_id, user_id, role, created_at)
     VALUES (new_tenant_id, new.id, 'admin', now());
 
     -- 3. Create a free-tier subscription record

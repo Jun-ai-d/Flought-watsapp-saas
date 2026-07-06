@@ -6,7 +6,14 @@ const ALGORITHM = 'aes-256-gcm';
 // In production, this must be set in process.env.DB_ENCRYPTION_KEY
 // Fallback is provided ONLY for local testing convenience.
 const getSecretKey = () => {
-  const envKey = process.env.DB_ENCRYPTION_KEY || 'flought_local_dev_mock_key_32_ch';
+  const envKey = process.env.DB_ENCRYPTION_KEY;
+  if (!envKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: DB_ENCRYPTION_KEY must be set in production');
+    }
+    // Fallback is provided ONLY for local testing convenience.
+    return Buffer.from('flought_local_dev_mock_key_32_ch'.padEnd(32, '0').slice(0, 32), 'utf-8');
+  }
   // Ensure the key is exactly 32 bytes by padding or slicing
   return Buffer.from(envKey.padEnd(32, '0').slice(0, 32), 'utf-8');
 };

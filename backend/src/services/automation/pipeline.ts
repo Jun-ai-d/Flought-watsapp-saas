@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../../lib/supabase';
 import { checkHumanIntent, triggerHandover } from './handover';
 import { matchFAQ } from './faqMatcher';
+import { executeFlow } from './flowMatcher';
 import { retrieveRelevantChunks } from '../kb/retrieval';
 import { generateRAGResponse } from '../llm/generator';
 import { getBSPProvider } from '../../bsp/providerFactory';
@@ -17,7 +18,30 @@ export async function processAutomationPipeline(
 
   // 1. Handover Check First
   if (checkHumanIntent(messageText)) {
-    await triggerHandover(tenantId, conversationId, 'explicit_request');
+    await triggerHandover(tenantId, conversationId, 'explicit_request', messageText);
+    return;
+  }
+
+  // 1.5. Quota Check
+  const { data: hasQuota, error: quotaError } = await supabaseAdmin.rpc('check_tenant_quota', {
+    p_tenant_id: tenantId
+  });
+  
+  if (!quotaError && hasQuota === false) {
+    console.log(`[Pipeline] Quota exceeded for tenant ${tenantId}. Aborting LLM and forcing handover.`);
+    await triggerHandover(tenantId, conversationId, 'billing_quota_exceeded', messageText, '', true);
+    return;
+  }
+
+  // 1.75. Visual Bot Flow Check
+  const flowResult = await executeFlow(tenantId, messageText);
+  if (flowResult.matched) {
+    if (flowResult.replyText) {
+      console.log(`[Pipeline] Bot Flow Matched! Triggering visual flow response.`);
+      await sendBotReply(tenantId, conversationId, customerPhone, providerName, flowResult.replyText, 'flow');
+    } else {
+      console.log(`[Pipeline] Bot Flow Matched but no response node connected.`);
+    }
     return;
   }
 
@@ -43,8 +67,13 @@ export async function processAutomationPipeline(
 
   if (chunks.length === 0) {
     console.log(`[Pipeline] No RAG chunks found.`);
+    
+    const formattedHistoryText = (history || []).reverse().map(h => 
+      h.direction === 'inbound' ? `Customer: ${h.content}` : `Bot: ${h.content}`
+    ).join('\n');
+
     // Trigger handover per TRD §3.2 (low retrieval confidence / no FAQ + no RAG)
-    await triggerHandover(tenantId, conversationId, 'low_confidence_retrieval');
+    await triggerHandover(tenantId, conversationId, 'low_confidence_retrieval', messageText, formattedHistoryText);
     return;
   }
 
@@ -66,7 +95,12 @@ export async function processAutomationPipeline(
     console.log(`[Pipeline] LLM returned low confidence.`);
     // Still send the apology message if it generated one, but also trigger handover
     await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id));
-    await triggerHandover(tenantId, conversationId, 'low_confidence_generation');
+    
+    const formattedHistoryText = formattedHistory.map(h => 
+      h.direction === 'inbound' ? `Customer: ${h.content}` : `Bot: ${h.content}`
+    ).join('\n');
+    
+    await triggerHandover(tenantId, conversationId, 'low_confidence_generation', messageText, formattedHistoryText);
     return;
   }
 
@@ -81,7 +115,7 @@ async function sendBotReply(
   toPhone: string, 
   providerName: string, 
   text: string,
-  source: 'faq' | 'rag',
+  source: 'faq' | 'rag' | 'flow',
   chunkIds?: string[]
 ) {
   // 1. Load provider config for this tenant (from Cache)

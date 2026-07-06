@@ -1,5 +1,5 @@
 export interface SessionMessageContent {
-  type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive';
+  type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive' | 'catalog';
   text?: string;
   mediaUrl?: string;
   // Extensible for other types
@@ -15,7 +15,7 @@ export interface NormalizedInboundMessage {
   waMessageId: string;        // Meta's own message ID
   fromPhone: string;
   toPhoneNumberId: string;    // used to resolve tenant_id via tenant_bsp_config
-  type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive';
+  type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive' | 'order';
   text?: string;
   mediaUrl?: string;
   timestamp: string;
@@ -48,6 +48,10 @@ export interface BSPProvider {
     name: string;
     category: 'marketing' | 'utility' | 'authentication';
     body: string;
+    headerType?: 'text' | 'image' | 'video' | 'document';
+    headerContent?: string;
+    footer?: string;
+    buttons?: any[];
     providerConfig: Record<string, any>;
   }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }>;
 

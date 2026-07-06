@@ -14,6 +14,25 @@ const Signup: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    // 1. Check if domain is eligible for another trial
+    const { data: isEligible, error: rpcError } = await supabase.rpc('check_domain_eligibility', {
+      p_email: email
+    });
+
+    if (rpcError) {
+      console.error(rpcError);
+      setError("An error occurred during domain verification. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    if (!isEligible) {
+      setError("A trial has already been started for this company domain. Please log into your existing account or contact sales to upgrade.");
+      setLoading(false);
+      return;
+    }
+
+    // 2. Proceed with signup
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,

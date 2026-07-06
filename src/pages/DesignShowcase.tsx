@@ -2,87 +2,79 @@ import React from 'react';
 
 const DesignShowcase: React.FC = () => {
   return (
-    <div className="main-content" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <div className="margin-rule" style={{ marginBottom: '3rem' }}>
-        <h1 style={{ marginBottom: '0.5rem' }}>Flought Design System</h1>
-        <p className="text-gray">Direction: "Duplicate Copy"</p>
+    <div className="max-w-4xl mx-auto space-y-12 pb-12">
+      <div className="border-b border-theme-border pb-6">
+        <h1 className="text-3xl font-display font-bold text-theme-text mb-2">Flought Design System</h1>
+        <p className="text-theme-text-muted">Interactive Theme Showcase</p>
       </div>
 
-      <section style={{ marginBottom: '3rem' }}>
-        <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--text-indigo)', paddingBottom: '0.5rem' }}>1. Typography & Colors</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-          <div>
-            <h3>Record Face (Courier Prime)</h3>
-            <p className="font-record" style={{ fontSize: '1.5rem', margin: '1rem 0' }}>No. 00482</p>
-            <p className="font-record text-gray">Used only for serial numbers, IDs, and timestamps.</p>
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-theme-border pb-2 text-theme-text">1. Typography & Colors</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="theme-card p-6 bg-theme-surface">
+            <h3 className="font-bold text-theme-text-muted mb-4 uppercase text-sm tracking-wider">Secondary Typeface</h3>
+            <p className="font-mono text-2xl text-theme-text mb-2">No. 00482</p>
+            <p className="text-sm text-theme-text-muted">Used only for serial numbers, IDs, and timestamps.</p>
           </div>
-          <div>
-            <h3>UI Face (Inter)</h3>
-            <p style={{ fontSize: '1.5rem', margin: '1rem 0' }}>Conversation Inbox</p>
-            <p className="text-gray">Used for general dashboard UI, navigation, and body text.</p>
+          <div className="theme-card p-6 bg-theme-surface">
+            <h3 className="font-bold text-theme-text-muted mb-4 uppercase text-sm tracking-wider">Primary UI Typeface</h3>
+            <p className="font-display text-2xl text-theme-text mb-2">Conversation Inbox</p>
+            <p className="text-sm text-theme-text-muted">Used for general dashboard UI, navigation, and body text.</p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-          <div style={{ padding: '1rem', border: '1px solid var(--text-indigo)', flex: 1, backgroundColor: 'var(--bg-cream)' }}>
-            <strong>Cream</strong> (Background)
-            <div className="font-record text-gray">#F5F0E6</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+          <div className="p-4 border border-theme-border bg-theme-bg flex flex-col items-center justify-center h-32" style={{ borderRadius: 'var(--radius-card)' }}>
+            <strong className="text-theme-text">Background</strong>
           </div>
-          <div style={{ padding: '1rem', color: 'var(--bg-cream)', flex: 1, backgroundColor: 'var(--text-indigo)' }}>
-            <strong>Indigo</strong> (Primary Text)
-            <div className="font-record" style={{ color: 'var(--gray-smudge)' }}>#1A1F3C</div>
+          <div className="p-4 bg-theme-text text-theme-bg flex flex-col items-center justify-center h-32" style={{ borderRadius: 'var(--radius-card)' }}>
+            <strong>Primary Text</strong>
           </div>
-          <div style={{ padding: '1rem', color: 'var(--bg-cream)', flex: 1, backgroundColor: 'var(--accent-red)' }}>
-            <strong>Red</strong> (Accent/Stamp)
-            <div className="font-record" style={{ color: 'var(--bg-cream)' }}>#C1440E</div>
+          <div className="p-4 bg-brand-accent text-white flex flex-col items-center justify-center h-32" style={{ borderRadius: 'var(--radius-card)' }}>
+            <strong>Accent / Brand</strong>
           </div>
-          <div style={{ padding: '1rem', flex: 1, border: '1px solid var(--gray-smudge)', color: 'var(--gray-smudge)' }}>
-            <strong>Gray</strong> (Audit Trail)
-            <div className="font-record text-gray">#8B8378</div>
+          <div className="p-4 border border-theme-text-muted text-theme-text-muted bg-theme-surface flex flex-col items-center justify-center h-32" style={{ borderRadius: 'var(--radius-card)' }}>
+            <strong>Muted / Borders</strong>
           </div>
         </div>
       </section>
 
-      <section style={{ marginBottom: '3rem' }}>
-        <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--text-indigo)', paddingBottom: '0.5rem' }}>2. Stamp Badges</h2>
-        <div style={{ display: 'flex', gap: '2rem', padding: '2rem', backgroundColor: '#fff', border: '1px solid var(--text-indigo)' }}>
-          <span className="stamp-badge">RESOLVED</span>
-          <span className="stamp-badge">HANDOVER</span>
-          <span className="stamp-badge">PENDING</span>
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-theme-border pb-2 text-theme-text">2. Badges & Indicators</h2>
+        <div className="flex flex-wrap gap-4 p-8 bg-theme-surface border border-theme-border" style={{ borderRadius: 'var(--radius-card)' }}>
+          <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 text-xs font-bold uppercase tracking-wider" style={{ borderRadius: 'var(--radius-button)' }}>RESOLVED</span>
+          <span className="px-3 py-1 bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 text-xs font-bold uppercase tracking-wider" style={{ borderRadius: 'var(--radius-button)' }}>HANDOVER</span>
+          <span className="px-3 py-1 bg-brand-accent/10 text-brand-accent border border-brand-accent/20 text-xs font-bold uppercase tracking-wider" style={{ borderRadius: 'var(--radius-button)' }}>PENDING</span>
         </div>
-        <p className="text-gray" style={{ marginTop: '1rem' }}>Red only. Placed at a slight 3-degree rotation.</p>
       </section>
 
-      <section style={{ marginBottom: '3rem' }}>
-        <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--text-indigo)', paddingBottom: '0.5rem' }}>3. Buttons (Flat)</h2>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn">Secondary Action</button>
-          <button className="btn btn-primary">Primary Action</button>
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-theme-border pb-2 text-theme-text">3. Interactive Elements</h2>
+        <div className="flex gap-4 p-8 bg-theme-surface border border-theme-border" style={{ borderRadius: 'var(--radius-card)' }}>
+          <button className="px-6 py-2 border border-theme-border text-theme-text font-bold hover:bg-theme-surface-hover transition-colors theme-button">Secondary Action</button>
+          <button className="px-6 py-2 bg-brand-accent text-white font-bold hover:bg-brand-accent-light transition-colors theme-button shadow-md">Primary Action</button>
         </div>
-        <p className="text-gray" style={{ marginTop: '1rem' }}>No rounded pills. No drop shadows. Ledger flat.</p>
       </section>
 
-      <section style={{ marginBottom: '3rem' }}>
-        <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--text-indigo)', paddingBottom: '0.5rem' }}>4. Ledger List (Conversation Row)</h2>
-        <div style={{ backgroundColor: '#fff', padding: '1rem', border: '1px solid var(--text-indigo)' }}>
-          <ul className="ledger-list">
-            <li className="ledger-row">
-              <span className="font-record" style={{ minWidth: '100px' }}>No. 00482</span>
-              <span style={{ fontWeight: 600, minWidth: '180px' }}>Arjun Patel</span>
-              <span className="stamp-badge" style={{ marginLeft: 'auto', marginRight: '2rem' }}>RESOLVED</span>
-              <span className="text-gray" style={{ minWidth: '350px', fontSize: '0.85rem' }}>Auto-resolved via FAQ [Hours of Operation]</span>
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-theme-border pb-2 text-theme-text">4. Data Lists</h2>
+        <div className="bg-theme-surface border border-theme-border overflow-hidden" style={{ borderRadius: 'var(--radius-card)' }}>
+          <ul className="divide-y divide-theme-border">
+            <li className="p-4 flex items-center hover:bg-theme-surface-hover transition-colors">
+              <span className="font-mono text-theme-text-muted w-24">No. 00482</span>
+              <span className="font-bold text-theme-text w-48">Arjun Patel</span>
+              <span className="px-2 py-1 bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold uppercase mx-auto" style={{ borderRadius: 'var(--radius-button)' }}>RESOLVED</span>
+              <span className="text-theme-text-muted text-sm flex-1 text-right">Auto-resolved via FAQ</span>
             </li>
-            <li className="ledger-row">
-              <span className="font-record" style={{ minWidth: '100px' }}>No. 00483</span>
-              <span style={{ fontWeight: 600, minWidth: '180px' }}>Priya Sharma</span>
-              <span className="stamp-badge" style={{ marginLeft: 'auto', marginRight: '2rem' }}>HANDOVER</span>
-              <span className="text-gray" style={{ minWidth: '350px', fontSize: '0.85rem' }}>Trigger: Low confidence on RAG retrieval</span>
+            <li className="p-4 flex items-center hover:bg-theme-surface-hover transition-colors">
+              <span className="font-mono text-theme-text-muted w-24">No. 00483</span>
+              <span className="font-bold text-theme-text w-48">Priya Sharma</span>
+              <span className="px-2 py-1 bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 text-[10px] font-bold uppercase mx-auto" style={{ borderRadius: 'var(--radius-button)' }}>HANDOVER</span>
+              <span className="text-theme-text-muted text-sm flex-1 text-right">Trigger: Low confidence</span>
             </li>
           </ul>
         </div>
-        <p className="text-gray" style={{ marginTop: '1rem' }}>Notice the gray text specifically marking the "duplicate copy" audit trail, distinct from customer details.</p>
       </section>
-
     </div>
   );
 };
