@@ -19,6 +19,7 @@ import rateLimit from 'express-rate-limit';
 import { traceMiddleware } from './middleware/traceMiddleware';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
 app.use(helmet());
@@ -68,7 +69,7 @@ app.use('/api', apiLimiter);
 
 
 // Routes
-app.use('/webhooks', webhookLimiter, webhooksRouter);
+app.use('/webhooks', webhooksRouter);
 app.use('/api/outbound', outboundRouter);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/admin', adminRoutes);
