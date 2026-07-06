@@ -44,12 +44,24 @@ router.post('/meta', async (req, res) => {
 
     // Verify HMAC signature
     const signature = headers['x-hub-signature-256'];
+    let sigDebug = 'No signature provided';
+    
     if (signature) {
       const crypto = require('crypto');
       const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret || 'flought-meta-test').update((req as any).rawBody || '').digest('hex');
       if (signature !== expectedSignature) {
+        // Log invalid signature to DB for debugging
+        const { supabaseAdmin } = require('../lib/supabase');
+        await supabaseAdmin.from('contacts').insert({
+          tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+          phone_number: 'DEBUG_SIG_FAIL_' + Date.now(),
+          name: `Expected: ${expectedSignature}, Got: ${signature}`,
+          notes: `Raw body length: ${((req as any).rawBody || '').length}. Secret set: ${!!appSecret}`
+        }).catch(console.error);
+        
         return res.status(401).send('Unauthorized: Invalid Signature');
       }
+      sigDebug = 'Signature Match';
     } else if (process.env.NODE_ENV === 'production') {
       return res.status(401).send('Unauthorized: Missing Signature');
     }
@@ -58,10 +70,27 @@ router.post('/meta', async (req, res) => {
     res.status(200).send('EVENT_RECEIVED');
 
     // Process asynchronously
+    // Log success to DB for debugging
+    const { supabaseAdmin } = require('../lib/supabase');
+    await supabaseAdmin.from('contacts').insert({
+      tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+      phone_number: 'DEBUG_SUCCESS_' + Date.now(),
+      name: 'Webhook passed verification',
+      notes: `Payload: ${JSON.stringify(payload)}`
+    }).catch(console.error);
+
     await handleInboundWebhook('meta', headers, payload);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing Meta webhook:', { error, trace_id: req.traceId });
+    // Log error to DB for debugging
+    const { supabaseAdmin } = require('../lib/supabase');
+    await supabaseAdmin.from('contacts').insert({
+      tenant_id: '486ecee1-ce4b-40de-b3f8-788de913f98a',
+      phone_number: 'DEBUG_ERROR_' + Date.now(),
+      name: error.message || 'Unknown error',
+      notes: error.stack
+    }).catch(console.error);
   }
 });
 
