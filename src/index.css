@@ -11,8 +11,27 @@
   --color-theme-border: var(--color-border);
   --color-theme-text: var(--color-text);
   --color-theme-text-muted: var(--color-text-muted);
-  --color-brand-accent: var(--color-accent);
-  --color-brand-accent-light: var(--color-accent-light);
+}
+
+@layer utilities {
+  .bg-brand-accent { background-color: var(--color-accent) !important; }
+  .text-brand-accent { color: var(--color-accent) !important; }
+  .border-brand-accent { border-color: var(--color-accent) !important; }
+  
+  .bg-brand-accent-light { background-color: var(--color-accent-light) !important; }
+  .text-brand-accent-light { color: var(--color-accent-light) !important; }
+  
+  .bg-brand-accent\/5 { background-color: color-mix(in srgb, var(--color-accent) 5%, transparent) !important; }
+  .bg-brand-accent\/10 { background-color: color-mix(in srgb, var(--color-accent) 10%, transparent) !important; }
+  .bg-brand-accent\/20 { background-color: color-mix(in srgb, var(--color-accent) 20%, transparent) !important; }
+  
+  .border-brand-accent\/20 { border-color: color-mix(in srgb, var(--color-accent) 20%, transparent) !important; }
+  .hover\:bg-brand-accent-light:hover { background-color: var(--color-accent-light) !important; }
+  .hover\:bg-brand-accent:hover { background-color: var(--color-accent) !important; }
+  .hover\:text-brand-accent:hover { color: var(--color-accent) !important; }
+  .hover\:border-brand-accent:hover { border-color: var(--color-accent) !important; }
+  .hover\:bg-brand-accent\/10:hover { background-color: color-mix(in srgb, var(--color-accent) 10%, transparent) !important; }
+  .hover\:bg-brand-accent\/5:hover { background-color: color-mix(in srgb, var(--color-accent) 5%, transparent) !important; }
 }
 
 @layer base {
