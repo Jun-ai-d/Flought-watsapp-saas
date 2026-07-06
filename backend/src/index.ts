@@ -32,9 +32,12 @@ const allowedOrigins = [
 ];
 
 // Webhooks do not need CORS and can be triggered by external servers (Meta) with foreign Origin headers.
-// Placing this before CORS prevents Meta webhooks from being rejected with 500 errors.
-app.use('/webhooks', webhooksRouter);
-
+// We apply express.json() locally to this route so it can parse the body BEFORE CORS rejects it.
+app.use('/webhooks', express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+}), webhooksRouter);
 app.use(cors({ 
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
