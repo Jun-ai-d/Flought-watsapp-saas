@@ -70,6 +70,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'Flought API', version: '1.0' });
+});
+
 // Global Error Handler
 app.use((err: any, req: any, res: any, next: any) => {
   console.error('Unhandled API Error:', { error: err.message, stack: err.stack, traceId: req.traceId });
