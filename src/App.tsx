@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import { SpeedInsights } from '@vercel/speed-insights/react';
 // Marketing Pages
 const MarketingLayout = lazy(() => import('./components/MarketingLayout'));
 const Home = lazy(() => import('./pages/marketing/Home'));
@@ -38,13 +38,14 @@ const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
 const RefundPolicy = lazy(() => import('./pages/legal/RefundPolicy'));
 
 const LoadingSpinner = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+  <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-gray-900">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00B2FF]"></div>
   </div>
 );
 
 function App() {
   return (
+    <>
     <Suspense fallback={<LoadingSpinner />}>
       <Routes>
         {/* Marketing Routes */}
@@ -89,6 +90,8 @@ function App() {
         </Route>
       </Routes>
     </Suspense>
+    <SpeedInsights />
+    </>
   );
 }
 
