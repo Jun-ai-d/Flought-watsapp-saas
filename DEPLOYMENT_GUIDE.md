@@ -43,6 +43,7 @@ The backend is configured in `src/index.ts` to strictly allow requests *only* fr
 * `SUPABASE_URL`: Your Supabase Project URL
 * `SUPABASE_SERVICE_ROLE_KEY`: The Supabase Service Role Key (Required to bypass RLS for background jobs)
 * `FRONTEND_URL`: A comma-separated list of allowed frontend domains (e.g., `https://flought.com,https://www.flought.com`)
+* `DB_ENCRYPTION_KEY`: A 32+ character random string used for AES-256 Application-Level Encryption. (Required to safely encrypt Meta Access Tokens before saving to Supabase).
 * `OPENAI_API_KEY`: API key for LLM generation
 * `LLM_MODEL`: The designated model to use (e.g., `openai/gpt-4o-mini`)
 * `META_APP_SECRET`: The actual App Secret from the Meta Developer Dashboard (Required in production to cryptographically verify incoming webhook signatures).
