@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -12,7 +13,13 @@ const Settings: React.FC = () => {
   const { tenant, session } = useAuth();
   const { designLanguage, colorMode, accentColor, setDesignLanguage, setColorMode, setAccentColor } = useTheme();
   
-  const [activeTab, setActiveTab] = useState<'general' | 'team' | 'appearance' | 'whatsapp' | 'developer' | 'shopify' | 'crm' | 'quick_replies'>('general');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || localStorage.getItem('settingsActiveTab') || 'general';
+  
+  const setActiveTab = (tab: string) => {
+    localStorage.setItem('settingsActiveTab', tab);
+    setSearchParams({ tab });
+  };
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'agent'>('agent');
   const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
