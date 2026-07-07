@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import { ArrowRight, Bot, Zap, ShieldCheck, Database, MessageSquare, ArrowUpRight, ShoppingCart, Activity, Users } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Bot, Zap, ShieldCheck, Database, MessageSquare, ArrowUpRight, ShoppingCart, Activity, Users, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import anime from 'animejs';
 import HeroPipeline from '../../components/3d/HeroPipeline';
 
@@ -137,7 +137,7 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <div className="hero-3d relative lg:h-[700px] flex items-center justify-center z-50">
+          <div className="hero-3d relative h-[400px] lg:h-[700px] flex items-center justify-center z-50 w-full overflow-hidden">
             <HeroPipeline queryVolume={1000} percentSolved={0.8} />
           </div>
 
@@ -147,13 +147,115 @@ const HeroSection = () => {
   );
 };
 
+const FAQItem = ({ question, answer }: { question: string, answer: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="border-b border-[#EAEAEA]">
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="w-full py-6 flex items-center justify-between text-left focus:outline-none"
+      >
+        <span className="text-xl font-bold text-[#00221A]">{question}</span>
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }}>
+          <ChevronDown className="text-[#4A6B5D]" />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <p className="pb-6 text-[#4A6B5D] text-lg leading-relaxed">{answer}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const Home: React.FC = () => {
   return (
     <div className="flex flex-col w-full bg-[#FAFAFA] text-[#00221A]">
       <HeroSection />
 
+      {/* ROI / Stats Highlight */}
+      <section className="py-20 bg-[#002E23] text-white overflow-hidden relative">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="grid md:grid-cols-3 gap-12 text-center divide-y md:divide-y-0 md:divide-x divide-white/20">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="pt-8 md:pt-0">
+              <div className="text-5xl font-display font-bold mb-2">80%</div>
+              <div className="text-[#A7C7B9] text-lg">Queries Resolved Instantly</div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="pt-8 md:pt-0">
+              <div className="text-5xl font-display font-bold mb-2">24/7</div>
+              <div className="text-[#A7C7B9] text-lg">Always-on Support</div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="pt-8 md:pt-0">
+              <div className="text-5xl font-display font-bold mb-2">&lt; 1s</div>
+              <div className="text-[#A7C7B9] text-lg">Average Response Time</div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-32 bg-white border-b border-[#EAEAEA] overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-24"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-[#00221A] tracking-tight mb-4">
+              Go live in minutes, not months.
+            </h2>
+            <p className="text-[#4A6B5D] text-xl">The simplest path to enterprise-grade WhatsApp automation.</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-12 relative">
+            {/* Connecting Line (Desktop only) */}
+            <div className="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-transparent via-[#EAEAEA] to-transparent z-0"></div>
+
+            {/* Step 1 */}
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="relative z-10 text-center flex flex-col items-center">
+              <div className="w-24 h-24 bg-[#FAFAFA] rounded-full border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-[#002E23] mb-8 relative">
+                1
+                <div className="absolute -bottom-2 right-0 bg-[#059669] text-white p-1.5 rounded-full shadow-sm"><Zap size={16} /></div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Connect WhatsApp</h3>
+              <p className="text-[#4A6B5D] text-lg leading-relaxed">Securely link your WhatsApp Business API with a few clicks. No coding required.</p>
+            </motion.div>
+
+            {/* Step 2 */}
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="relative z-10 text-center flex flex-col items-center">
+              <div className="w-24 h-24 bg-[#002E23] rounded-full border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-white mb-8 relative">
+                2
+                <div className="absolute -bottom-2 right-0 bg-[#C1440E] text-white p-1.5 rounded-full shadow-sm"><Database size={16} /></div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Upload Knowledge</h3>
+              <p className="text-[#4A6B5D] text-lg leading-relaxed">Drag and drop PDFs, URLs, and FAQs. Our pgvector engine instantly embeds your business logic.</p>
+            </motion.div>
+
+            {/* Step 3 */}
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="relative z-10 text-center flex flex-col items-center">
+              <div className="w-24 h-24 bg-[#FAFAFA] rounded-full border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-[#002E23] mb-8 relative">
+                3
+                <div className="absolute -bottom-2 right-0 bg-[#059669] text-white p-1.5 rounded-full shadow-sm"><Bot size={16} /></div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Go on Autopilot</h3>
+              <p className="text-[#4A6B5D] text-lg leading-relaxed">Turn on the AI. It immediately begins resolving 80% of support queries autonomously.</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
 
       {/* The Problem / Solution Grid */}
+
       <section className="py-32 bg-white overflow-hidden">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div 
@@ -361,6 +463,135 @@ const Home: React.FC = () => {
             </motion.div>
 
           </div>
+        </div>
+      </section>
+
+      {/* Deep-Dive Value Propositions (Zig-Zag) */}
+      <section className="py-32 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 space-y-32">
+          
+          {/* Row 1 */}
+          <div className="flex flex-col md:flex-row items-center gap-16">
+            <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="w-full md:w-1/2">
+              <div className="aspect-square rounded-3xl bg-[#FAFAFA] border border-[#EAEAEA] shadow-inner p-8 flex items-center justify-center relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#002E23]/5 to-transparent"></div>
+                {/* Mock UI Element */}
+                <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm border border-gray-100 z-10 transform group-hover:scale-105 transition-transform duration-500">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl">🤖</div>
+                    <div>
+                      <div className="font-bold text-gray-900">Flought AI</div>
+                      <div className="text-sm text-emerald-600 font-medium">Resolving instantly</div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm text-gray-700 text-sm w-[85%]">Hey! How can I help you today?</div>
+                    <div className="bg-[#002E23] text-white p-3 rounded-2xl rounded-tr-sm text-sm w-[85%] ml-auto">Where is my order #1234?</div>
+                    <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm text-gray-700 text-sm w-[85%]">Your order is currently out for delivery and should arrive by 4:00 PM today! 🚚</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="w-full md:w-1/2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#059669]/10 text-[#059669] font-semibold text-sm mb-6">
+                <ShieldCheck size={16} /> Zero-Downtime Support
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold text-[#00221A] tracking-tight mb-6">
+                Your customers don't sleep. Neither should you.
+              </h2>
+              <p className="text-[#4A6B5D] text-lg leading-relaxed mb-8">
+                Provide instant, accurate responses 24/7/365. By resolving routine queries automatically, you ensure that your customers always feel heard, drastically reducing churn and increasing lifetime value.
+              </p>
+              <ul className="space-y-4">
+                <li className="flex items-center gap-3 text-lg font-medium text-[#00221A]"><CheckCircle2 className="text-[#059669]" /> Multilingual support built-in</li>
+                <li className="flex items-center gap-3 text-lg font-medium text-[#00221A]"><CheckCircle2 className="text-[#059669]" /> Strict RAG guarantees no hallucinations</li>
+                <li className="flex items-center gap-3 text-lg font-medium text-[#00221A]"><CheckCircle2 className="text-[#059669]" /> Seamless Shopify integration</li>
+              </ul>
+            </motion.div>
+          </div>
+
+          {/* Row 2 */}
+          <div className="flex flex-col md:flex-row-reverse items-center gap-16">
+            <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="w-full md:w-1/2">
+              <div className="aspect-square rounded-3xl bg-[#002E23] p-8 flex flex-col justify-center relative overflow-hidden group shadow-2xl shadow-[#002E23]/20">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                {/* Mock UI Element */}
+                <div className="bg-[#00392C] p-6 rounded-2xl shadow-xl w-full max-w-sm mx-auto border border-white/10 z-10 transform group-hover:-translate-y-2 transition-transform duration-500">
+                  <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-xl shadow-lg shadow-amber-500/20">👩‍💼</div>
+                      <div className="text-white font-bold">Sarah (Agent)</div>
+                    </div>
+                    <div className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded font-bold uppercase tracking-wider">High Priority</div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-white/60 text-xs uppercase tracking-wider font-bold">Internal Note</div>
+                    <div className="text-white text-sm bg-black/20 p-4 rounded-xl italic">
+                      "AI flagged this conversation: Customer is requesting a complex refund for a damaged item. Handoff initiated."
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="w-full md:w-1/2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C1440E]/10 text-[#C1440E] font-semibold text-sm mb-6">
+                <Users size={16} /> Seamless Human Handoff
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold text-[#00221A] tracking-tight mb-6">
+                AI when you can. Human when you must.
+              </h2>
+              <p className="text-[#4A6B5D] text-lg leading-relaxed mb-8">
+                Not everything can be automated. When the AI detects frustration, low confidence, or specific keywords, it instantly alerts your human agents and passes the entire conversation context to the Shared Inbox.
+              </p>
+              <ul className="space-y-4">
+                <li className="flex items-center gap-3 text-lg font-medium text-[#00221A]"><CheckCircle2 className="text-[#059669]" /> Sentiment analysis routing</li>
+                <li className="flex items-center gap-3 text-lg font-medium text-[#00221A]"><CheckCircle2 className="text-[#059669]" /> Full context preservation</li>
+                <li className="flex items-center gap-3 text-lg font-medium text-[#00221A]"><CheckCircle2 className="text-[#059669]" /> Real-time team collaboration</li>
+              </ul>
+            </motion.div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-32 bg-[#FAFAFA] border-t border-[#EAEAEA]">
+        <div className="max-w-4xl mx-auto px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-[#00221A] tracking-tight mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-[#4A6B5D] text-xl">Everything you need to know about scaling with Flought.</p>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-white rounded-3xl border border-[#EAEAEA] p-8 md:p-12 shadow-sm"
+          >
+            <FAQItem 
+              question="Do I need my own WhatsApp Business API account?" 
+              answer="Yes, you will need to link your own WhatsApp Business API account. The process is seamless and we guide you through connecting it directly via the Meta dashboard within our platform." 
+            />
+            <FAQItem 
+              question="How does the AI know what to say?" 
+              answer="You simply upload your existing knowledge base (PDFs, Notion docs, FAQs, or website URLs). Our advanced Vector RAG engine analyzes your documents and restricts the AI to strictly answer using only the provided context. It will never invent answers." 
+            />
+            <FAQItem 
+              question="Can I take over an AI conversation manually?" 
+              answer="Absolutely. Our Unified Inbox allows human agents to monitor all ongoing AI conversations in real-time. With one click, an agent can pause the AI and take over the chat to provide a personal touch." 
+            />
+            <FAQItem 
+              question="Is my customer data secure?" 
+              answer="Security is our top priority. Our infrastructure utilizes strict Row Level Security (RLS) ensuring absolute tenant isolation—meaning no other business can ever access your data. We are fully compliant with GDPR and Meta's developer terms." 
+            />
+          </motion.div>
         </div>
       </section>
 
