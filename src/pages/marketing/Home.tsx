@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Bot, Zap, ShieldCheck, Database, MessageSquare, ArrowUpRight, ShoppingCart, Activity, Users, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import anime from 'animejs';
 import HeroPipeline from '../../components/3d/HeroPipeline';
 
@@ -95,6 +96,12 @@ const HeroSection = () => {
 
   return (
     <section className="relative pt-32 pb-40 overflow-hidden bg-white border-b border-[#EAEAEA]">
+      <Helmet>
+        <title>Flought | Automate Your WhatsApp Business</title>
+        <meta name="description" content="Put your WhatsApp on autopilot. A complete WhatsApp OS with native Shopify & CRM sync, automated Drip Campaigns, and strict pgvector RAG." />
+        <link rel="canonical" href="https://flought.com/" />
+      </Helmet>
+
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden opacity-40 pointer-events-none">
         <div ref={gridRef} className="grid gap-8" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {dots}

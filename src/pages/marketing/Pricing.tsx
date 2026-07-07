@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 
 const TiltCard = ({ children, className }: { children: React.ReactNode, className?: string }) => {
   const x = useMotionValue(0);
@@ -40,6 +41,12 @@ const TiltCard = ({ children, className }: { children: React.ReactNode, classNam
 const Pricing: React.FC = () => {
   return (
     <div className="w-full bg-[#FAFAFA] pb-32 font-sans text-[#00221A]">
+      <Helmet>
+        <title>Flought Pricing | Affordable WhatsApp SaaS</title>
+        <meta name="description" content="Start for free, upgrade when you hit scale. No hidden fees. Transparent pricing for the ultimate WhatsApp Automation OS." />
+        <link rel="canonical" href="https://flought.com/pricing" />
+      </Helmet>
+
       {/* Header */}
       <section className="pt-32 pb-20 text-center px-6 relative bg-white border-b border-[#EAEAEA]">
         <div className="relative z-10">

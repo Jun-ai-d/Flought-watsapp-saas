@@ -2,10 +2,17 @@ import React from 'react';
 import { Bot, MessageSquare, Database, Zap, Workflow, ShoppingCart, Activity, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 
 const Features: React.FC = () => {
   return (
     <div className="w-full bg-[#FAFAFA] text-[#00221A]">
+      <Helmet>
+        <title>System Specs & Features | Flought</title>
+        <meta name="description" content="Explore Flought's powerful features including pgvector RAG, automated Drip Campaigns, Shopify catalog synchronization, and intelligent human-handoff." />
+        <link rel="canonical" href="https://flought.com/features" />
+      </Helmet>
+
       {/* Header */}
       <section className="py-24 bg-white border-b border-[#EAEAEA] relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-6 relative z-10 text-center">
