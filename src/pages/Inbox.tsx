@@ -87,6 +87,54 @@ const Inbox: React.FC = () => {
     enabled: !!tenant?.id,
   });
 
+  // Realtime Subscription
+  useEffect(() => {
+    if (!tenant?.id) return;
+
+    const channel = supabase
+      .channel('public:messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `tenant_id=eq.${tenant.id}` },
+        (payload) => {
+          const newMessage = payload.new;
+          
+          // 1. Update the active chat log if this message belongs to the selected conversation
+          queryClient.setQueryData(['messages', newMessage.conversation_id], (old: any[] = []) => {
+            // Deduplicate (in case of optimistic UI temp IDs or weird network races)
+            if (old.some(m => m.id === newMessage.id)) return old;
+            return [...old, newMessage];
+          });
+
+          // 2. Bump the conversation in the sidebar list to the top and update snippet/timestamp
+          queryClient.setQueryData(['conversations', tenant.id], (old: any[] = []) => {
+            const convIndex = old.findIndex(c => c.id === newMessage.conversation_id);
+            if (convIndex === -1) {
+              // If it's a completely new conversation, we probably should invalidate to fetch it
+              queryClient.invalidateQueries({ queryKey: ['conversations', tenant.id] });
+              return old;
+            }
+            
+            const updatedConv = {
+              ...old[convIndex],
+              last_message_at: newMessage.created_at,
+              snippet: newMessage.content || (newMessage.message_type === 'audio' ? 'Voice note' : 'New message')
+            };
+            
+            // Remove it from current position and put it at the top
+            const newConvs = [...old];
+            newConvs.splice(convIndex, 1);
+            return [updatedConv, ...newConvs];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenant?.id, queryClient]);
+
   // 2. Mutations
   const claimMutation = useMutation<any, Error, string>({
     mutationFn: async (convId: string) => {
