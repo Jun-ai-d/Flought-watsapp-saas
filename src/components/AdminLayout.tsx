@@ -31,21 +31,21 @@ const AdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-200 font-sans overflow-hidden relative">
+    <div className="flex h-screen bg-theme-surface text-theme-text font-sans overflow-hidden relative">
       
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-950 border-r border-slate-800 z-20 shrink-0 text-white shadow-xl">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800 gap-3 shrink-0 bg-slate-950">
+      <aside className="hidden md:flex flex-col w-64 bg-theme-bg border-r border-theme-border z-20 shrink-0 text-theme-text shadow-xl">
+        <div className="h-16 flex items-center px-6 border-b border-theme-border gap-3 shrink-0 bg-theme-bg">
           <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-sm p-1">
             <img src="/logo.png" alt="Flought Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white truncate">
+          <h1 className="text-xl font-bold tracking-tight text-theme-text truncate">
             Flought Admin
           </h1>
         </div>
 
         <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto scrollbar-thin">
-          <div className="px-2 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div className="px-2 mb-2 text-xs font-bold text-theme-text-muted uppercase tracking-wider">
             Super Admin
           </div>
           {navItems.map((item) => {
@@ -59,8 +59,8 @@ const AdminLayout: React.FC = () => {
                 className={cn(
                   "flex items-center px-4 py-3 text-sm font-medium transition-all duration-200 border rounded",
                   isActive 
-                    ? "bg-indigo-900/40 text-indigo-300 border-indigo-700/50 shadow-md" 
-                    : "text-slate-400 border-transparent hover:border-slate-700 hover:text-white hover:bg-slate-800/50"
+                    ? "bg-brand-accent/10 text-brand-accent border-brand-accent/20 shadow-md" 
+                    : "text-theme-text-muted border-transparent hover:border-theme-border hover:text-theme-text hover:bg-theme-surface-hover/50"
                 )}
               >
                 <Icon className="mr-3 h-5 w-5 shrink-0" />
@@ -70,12 +70,12 @@ const AdminLayout: React.FC = () => {
           })}
 
           <div className="mt-8">
-            <div className="px-2 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <div className="px-2 mb-2 text-xs font-bold text-theme-text-muted uppercase tracking-wider">
               Tenant Access
             </div>
             <Link
               to="/dashboard"
-              className="flex items-center px-4 py-3 text-sm font-medium text-slate-400 border border-transparent rounded hover:border-slate-700 hover:text-white hover:bg-slate-800/50 transition-all duration-200"
+              className="flex items-center px-4 py-3 text-sm font-medium text-theme-text-muted border border-transparent rounded hover:border-theme-border hover:text-theme-text hover:bg-theme-surface-hover/50 transition-all duration-200"
             >
               <ArrowLeft className="mr-3 h-5 w-5 shrink-0" />
               <span className="truncate">Back to Workspace</span>
@@ -84,23 +84,23 @@ const AdminLayout: React.FC = () => {
         </nav>
 
         {/* User / Logout */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950 shrink-0">
+        <div className="p-4 border-t border-theme-border bg-theme-bg shrink-0">
           <div className="flex items-center gap-3 px-2 py-2 mb-4">
-            <div className="w-10 h-10 rounded bg-indigo-900/50 border border-indigo-700/50 flex items-center justify-center text-indigo-300 font-bold shrink-0">
+            <div className="w-10 h-10 rounded bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent font-bold shrink-0">
               {user?.email?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-200 truncate">
+              <p className="text-sm font-bold text-theme-text truncate">
                 Super Admin
               </p>
-              <p className="text-xs text-slate-500 truncate mt-0.5">
+              <p className="text-xs text-theme-text-muted truncate mt-0.5">
                 {user?.email}
               </p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center w-full px-4 py-2.5 text-sm font-bold text-slate-400 border border-slate-700 rounded hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+            className="flex items-center justify-center w-full px-4 py-2.5 text-sm font-bold text-theme-text-muted border border-theme-border rounded hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
@@ -109,17 +109,17 @@ const AdminLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen relative z-10 bg-slate-900">
+      <main className="flex-1 flex flex-col min-w-0 h-screen relative z-10 bg-theme-surface">
         
         {/* Mobile Top Bar */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800 text-white">
+        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-theme-bg border-b border-theme-border text-theme-text">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-theme-text font-bold text-lg">
               A
             </div>
             <span className="font-bold tracking-tight">Admin Portal</span>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-400 hover:text-white">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-theme-text-muted hover:text-theme-text">
             <Menu size={24} />
           </button>
         </div>
@@ -137,13 +137,13 @@ const AdminLayout: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: '100%' }}
             transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-            className="md:hidden fixed inset-0 z-[60] bg-slate-950 text-slate-200 flex flex-col"
+            className="md:hidden fixed inset-0 z-[60] bg-theme-bg text-theme-text flex flex-col"
           >
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+            <div className="flex items-center justify-between p-4 border-b border-theme-border">
               <h2 className="text-xl font-bold tracking-tight">Admin Menu</h2>
               <button 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-10 h-10 rounded bg-slate-900 flex items-center justify-center text-slate-400 border border-slate-700"
+                className="w-10 h-10 rounded bg-theme-surface flex items-center justify-center text-theme-text-muted border border-theme-border"
               >
                 <X size={20} />
               </button>
@@ -161,8 +161,8 @@ const AdminLayout: React.FC = () => {
                     className={cn(
                       "flex items-center p-4 rounded border transition-all",
                       isActive 
-                        ? "bg-indigo-900/40 border-indigo-700/50 text-indigo-300" 
-                        : "bg-slate-900 border-slate-800 text-slate-400 hover:border-indigo-500/50"
+                        ? "bg-brand-accent/10 border-brand-accent/20 text-brand-accent" 
+                        : "bg-theme-surface border-theme-border text-theme-text-muted hover:border-brand-accent/50"
                     )}
                   >
                     <Icon className="mr-3 w-6 h-6" />
@@ -171,19 +171,19 @@ const AdminLayout: React.FC = () => {
                 );
               })}
 
-              <div className="my-6 h-px bg-slate-800" />
+              <div className="my-6 h-px bg-theme-surface-hover" />
 
               <Link
                 to="/dashboard"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center p-4 rounded bg-slate-900 border border-slate-700 text-slate-300 font-bold"
+                className="flex items-center p-4 rounded bg-theme-surface border border-theme-border text-theme-text font-bold"
               >
                 <ArrowLeft className="mr-3 w-6 h-6" />
                 Back to Workspace
               </Link>
             </div>
 
-            <div className="p-6 border-t border-slate-800">
+            <div className="p-6 border-t border-theme-border">
                <button
                 onClick={handleLogout}
                 className="flex items-center justify-center w-full px-4 py-3 font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded"

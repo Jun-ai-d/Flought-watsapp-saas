@@ -102,76 +102,76 @@ const AdminUsers: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 relative max-w-7xl mx-auto text-slate-200">
-      <div className="border-b border-slate-800 pb-4">
-        <h1 className="text-3xl font-bold text-slate-100 flex items-center tracking-tight">
-          <Users className="mr-3 h-8 w-8 text-indigo-500" />
+    <div className="space-y-8 relative max-w-7xl mx-auto text-theme-text">
+      <div className="border-b border-theme-border pb-4">
+        <h1 className="text-3xl font-bold text-theme-text flex items-center tracking-tight">
+          <Users className="mr-3 h-8 w-8 text-brand-accent" />
           Platform Users
         </h1>
-        <p className="text-slate-400 mt-2 text-lg font-medium">Global audit of all users across all provisioned workspaces.</p>
+        <p className="text-theme-text-muted mt-2 text-lg font-medium">Global audit of all users across all provisioned workspaces.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded flex items-center shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-indigo-500">
-          <div className="p-4 bg-indigo-500/10 text-indigo-500 rounded mr-4 border border-indigo-500/20">
+        <div className="p-6 bg-theme-surface border border-theme-border rounded flex items-center shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-indigo-500">
+          <div className="p-4 bg-indigo-500/10 text-brand-accent rounded mr-4 border border-indigo-500/20">
             <Users size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Verified Users</div>
-            <div className="text-3xl font-mono font-bold text-slate-100">
+            <div className="text-theme-text-muted text-xs font-bold uppercase tracking-wider mb-1">Total Verified Users</div>
+            <div className="text-3xl font-mono font-bold text-theme-text">
               {users.length.toLocaleString()}
             </div>
           </div>
         </div>
 
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded flex items-center shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-amber-500">
+        <div className="p-6 bg-theme-surface border border-theme-border rounded flex items-center shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-amber-500">
           <div className="p-4 bg-amber-500/10 text-amber-500 rounded mr-4 border border-amber-500/20">
             <Shield size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Tenant Admins</div>
-            <div className="text-3xl font-mono font-bold text-slate-100">
+            <div className="text-theme-text-muted text-xs font-bold uppercase tracking-wider mb-1">Tenant Admins</div>
+            <div className="text-3xl font-mono font-bold text-theme-text">
               {adminsCount.toLocaleString()}
             </div>
           </div>
         </div>
 
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded flex items-center shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-sky-500">
+        <div className="p-6 bg-theme-surface border border-theme-border rounded flex items-center shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-sky-500">
           <div className="p-4 bg-sky-500/10 text-sky-500 rounded mr-4 border border-sky-500/20">
             <User size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Agents</div>
-            <div className="text-3xl font-mono font-bold text-slate-100">
+            <div className="text-theme-text-muted text-xs font-bold uppercase tracking-wider mb-1">Agents</div>
+            <div className="text-3xl font-mono font-bold text-theme-text">
               {agentsCount.toLocaleString()}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6 bg-slate-900 border border-slate-800 rounded">
+      <div className="p-6 bg-theme-surface border border-theme-border rounded">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold flex items-center text-slate-100">
+          <h2 className="text-xl font-bold flex items-center text-theme-text">
             Global User Directory
           </h2>
           <button 
             onClick={() => setShowProvisionModal(true)}
-            className="px-4 py-2 bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-500 transition-colors rounded flex items-center shadow-md shadow-indigo-900/20"
+            className="px-4 py-2 bg-indigo-600 text-theme-text font-bold text-sm hover:bg-indigo-500 transition-colors rounded flex items-center shadow-md shadow-indigo-900/20"
           >
             <PlusCircle className="w-4 h-4 mr-2" /> Provision User
           </button>
         </div>
         
-        <div className="overflow-x-auto rounded border border-slate-800">
-          <table className="w-full text-left border-collapse bg-slate-950">
+        <div className="overflow-x-auto rounded border border-theme-border">
+          <table className="w-full text-left border-collapse bg-theme-bg">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/50">
-                <th className="py-3 px-4 font-bold text-sm text-slate-500 uppercase tracking-wider border-r border-slate-800">User ID (Auth)</th>
-                <th className="py-3 px-4 font-bold text-sm text-slate-500 uppercase tracking-wider border-r border-slate-800">Workspace</th>
-                <th className="py-3 px-4 font-bold text-sm text-slate-500 uppercase tracking-wider border-r border-slate-800">Workspace Role</th>
-                <th className="py-3 px-4 font-bold text-sm text-slate-500 uppercase tracking-wider border-r border-slate-800">Workspace Quota</th>
-                <th className="py-3 px-4 font-bold text-sm text-slate-500 uppercase tracking-wider border-r border-slate-800">Joined</th>
-                <th className="py-3 px-4 font-bold text-sm text-slate-500 uppercase tracking-wider text-center">Actions</th>
+              <tr className="border-b border-theme-border bg-theme-surface/50">
+                <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider border-r border-theme-border">User ID (Auth)</th>
+                <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider border-r border-theme-border">Workspace</th>
+                <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider border-r border-theme-border">Workspace Role</th>
+                <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider border-r border-theme-border">Workspace Quota</th>
+                <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider border-r border-theme-border">Joined</th>
+                <th className="py-3 px-4 font-bold text-sm text-theme-text-muted uppercase tracking-wider text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -181,15 +181,15 @@ const AdminUsers: React.FC = () => {
                 const usagePercent = cap > 0 ? Math.min((used / cap) * 100, 100) : 0;
                 
                 return (
-                <tr key={u.id} className="hover:bg-slate-900 transition-colors">
-                  <td className="py-3 px-4 border-r border-slate-800">
-                    <div className="font-mono text-sm text-slate-200 font-bold">{u.user_id.substring(0,18)}...</div>
+                <tr key={u.id} className="hover:bg-theme-surface transition-colors">
+                  <td className="py-3 px-4 border-r border-theme-border">
+                    <div className="font-mono text-sm text-theme-text font-bold">{u.user_id.substring(0,18)}...</div>
                   </td>
-                  <td className="py-3 px-4 border-r border-slate-800">
-                    <div className="font-bold text-slate-200">{u.tenant?.business_name || 'N/A'}</div>
-                    <div className="text-xs uppercase font-bold text-slate-500 mt-1">{u.tenant?.tier}</div>
+                  <td className="py-3 px-4 border-r border-theme-border">
+                    <div className="font-bold text-theme-text">{u.tenant?.business_name || 'N/A'}</div>
+                    <div className="text-xs uppercase font-bold text-theme-text-muted mt-1">{u.tenant?.tier}</div>
                   </td>
-                  <td className="py-3 px-4 border-r border-slate-800">
+                  <td className="py-3 px-4 border-r border-theme-border">
                     <span className={cn(
                       "px-2 py-1 text-[10px] font-bold uppercase border rounded",
                       u.role === 'admin' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-sky-500/10 text-sky-500 border-sky-500/20"
@@ -197,12 +197,12 @@ const AdminUsers: React.FC = () => {
                       {u.role}
                     </span>
                   </td>
-                  <td className="py-3 px-4 border-r border-slate-800 min-w-[150px]">
-                    <div className="flex justify-between text-[10px] font-mono text-slate-400 mb-1 font-bold">
+                  <td className="py-3 px-4 border-r border-theme-border min-w-[150px]">
+                    <div className="flex justify-between text-[10px] font-mono text-theme-text-muted mb-1 font-bold">
                       <span>{used.toLocaleString()}</span>
                       <span>{cap.toLocaleString()}</span>
                     </div>
-                    <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                    <div className="w-full bg-theme-bg h-1.5 rounded-full overflow-hidden border border-theme-border">
                       <div 
                         className={cn(
                           "h-full rounded-full transition-all duration-500",
@@ -212,13 +212,13 @@ const AdminUsers: React.FC = () => {
                       />
                     </div>
                   </td>
-                  <td className="py-3 px-4 font-mono text-sm text-slate-300 border-r border-slate-800 h-full min-h-[50px]">
+                  <td className="py-3 px-4 font-mono text-sm text-theme-text border-r border-theme-border h-full min-h-[50px]">
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <button 
                       onClick={() => handleRevoke(u.user_id)}
-                      className="p-2 text-slate-500 hover:text-rose-500 transition-colors rounded-full hover:bg-rose-500/10 inline-flex"
+                      className="p-2 text-theme-text-muted hover:text-rose-500 transition-colors rounded-full hover:bg-rose-500/10 inline-flex"
                       title="Revoke Access (Delete User)"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -229,7 +229,7 @@ const AdminUsers: React.FC = () => {
               })}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500 italic bg-slate-900">No users found.</td>
+                  <td colSpan={6} className="py-8 text-center text-theme-text-muted italic bg-theme-surface">No users found.</td>
                 </tr>
               )}
             </tbody>
@@ -240,12 +240,12 @@ const AdminUsers: React.FC = () => {
       {/* Provision User Modal */}
       {showProvisionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="p-8 bg-slate-900 border border-slate-800 rounded w-full max-w-md relative">
-            <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center tracking-tight">
-                <PlusCircle className="mr-2 text-indigo-500 w-5 h-5" /> Provision User
+          <div className="p-8 bg-theme-surface border border-theme-border rounded w-full max-w-md relative">
+            <div className="flex justify-between items-center mb-6 border-b border-theme-border pb-4">
+              <h2 className="text-xl font-bold text-theme-text flex items-center tracking-tight">
+                <PlusCircle className="mr-2 text-brand-accent w-5 h-5" /> Provision User
               </h2>
-              <button onClick={() => setShowProvisionModal(false)} className="p-1 text-slate-500 hover:text-slate-200 transition-colors">
+              <button onClick={() => setShowProvisionModal(false)} className="p-1 text-theme-text-muted hover:text-theme-text transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -258,34 +258,34 @@ const AdminUsers: React.FC = () => {
               )}
               
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Email Address</label>
+                <label className="block text-sm font-bold text-theme-text-muted mb-2">Email Address</label>
                 <input 
                   type="email" 
                   value={provisionForm.email}
                   onChange={e => setProvisionForm({...provisionForm, email: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                  className="w-full bg-theme-bg border border-theme-border text-theme-text rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Temporary Password</label>
+                <label className="block text-sm font-bold text-theme-text-muted mb-2">Temporary Password</label>
                 <input 
                   type="password" 
                   value={provisionForm.password}
                   onChange={e => setProvisionForm({...provisionForm, password: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-mono"
+                  className="w-full bg-theme-bg border border-theme-border text-theme-text rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-mono"
                   required
                   minLength={6}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Assign to Workspace (Tenant)</label>
+                <label className="block text-sm font-bold text-theme-text-muted mb-2">Assign to Workspace (Tenant)</label>
                 <select 
                   value={provisionForm.tenant_id}
                   onChange={e => setProvisionForm({...provisionForm, tenant_id: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                  className="w-full bg-theme-bg border border-theme-border text-theme-text rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
                   required
                 >
                   <option value="" disabled>Select a workspace...</option>
@@ -296,29 +296,29 @@ const AdminUsers: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Workspace Role</label>
+                <label className="block text-sm font-bold text-theme-text-muted mb-2">Workspace Role</label>
                 <select 
                   value={provisionForm.role}
                   onChange={e => setProvisionForm({...provisionForm, role: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                  className="w-full bg-theme-bg border border-theme-border text-theme-text rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
                 >
                   <option value="admin">Workspace Admin</option>
                   <option value="agent">Agent</option>
                 </select>
               </div>
 
-              <div className="pt-6 border-t border-slate-800 flex justify-end gap-4 mt-6">
+              <div className="pt-6 border-t border-theme-border flex justify-end gap-4 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowProvisionModal(false)}
-                  className="flex-1 px-4 py-3 font-bold text-slate-400 hover:text-slate-200 border border-slate-700 hover:bg-slate-800 rounded transition-colors"
+                  className="flex-1 px-4 py-3 font-bold text-theme-text-muted hover:text-theme-text border border-theme-border hover:bg-theme-surface-hover rounded transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={provisioning || !provisionForm.tenant_id}
-                  className="flex-1 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded transition-colors disabled:opacity-50 flex items-center justify-center shadow-md"
+                  className="flex-1 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-theme-text font-bold rounded transition-colors disabled:opacity-50 flex items-center justify-center shadow-md"
                 >
                   {provisioning ? 'Provisioning...' : 'Provision User'}
                 </button>

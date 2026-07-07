@@ -127,7 +127,7 @@ const AdminProvisioning: React.FC = () => {
             <button 
               type="submit" 
               disabled={submitting}
-              className="w-full bg-brand-accent hover:bg-brand-accent/90 text-white font-bold py-4 px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center shadow-md shadow-brand-accent/20 text-lg tracking-wide"
+              className="w-full bg-brand-accent hover:bg-brand-accent/90 text-theme-text font-bold py-4 px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center shadow-md shadow-brand-accent/20 text-lg tracking-wide"
             >
               {submitting ? 'PROVISIONING...' : 'CREATE SECURE WORKSPACE'}
             </button>
