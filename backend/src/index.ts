@@ -106,6 +106,7 @@ app.use((err: any, req: any, res: any, next: any) => {
 import { initJobQueue } from './services/jobQueue';
 import { initBroadcasterWorkers } from './services/broadcaster';
 import { initCrmWorkers } from './services/crmWorker';
+import { initCampaignWorker } from './services/campaignWorker';
 
 app.listen(PORT, async () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
@@ -114,6 +115,7 @@ app.listen(PORT, async () => {
     await initJobQueue();
     await initBroadcasterWorkers();
     await initCrmWorkers();
+    await initCampaignWorker();
   } catch (error) {
     console.error('Failed to initialize background job workers', { error });
   }

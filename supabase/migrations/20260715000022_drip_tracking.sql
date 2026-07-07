@@ -1,0 +1,2 @@
+ALTER TABLE public.drip_enrollments ADD COLUMN IF NOT EXISTS current_step_order INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE public.drip_enrollments ADD COLUMN IF NOT EXISTS next_step_at TIMESTAMPTZ DEFAULT now();
