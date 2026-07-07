@@ -152,18 +152,6 @@ const Home: React.FC = () => {
     <div className="flex flex-col w-full bg-[#FAFAFA] text-[#00221A]">
       <HeroSection />
 
-      {/* Logos Section */}
-      <section className="py-12 border-b border-[#EAEAEA] bg-[#FAFAFA] overflow-hidden">
-        <div className="flex whitespace-nowrap animate-[scroll_40s_linear_infinite] items-center gap-24 font-semibold text-sm text-[#4A6B5D] uppercase tracking-wider">
-          {Array(8).fill(0).map((_, i) => (
-            <React.Fragment key={i}>
-              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-[#002E23] rounded-sm"></div> ACME CORP</span>
-              <span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-[#002E23] rounded-full"></div> GLOBEX</span>
-              <span className="flex items-center gap-2"><div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-[#002E23]"></div> INITECH</span>
-            </React.Fragment>
-          ))}
-        </div>
-      </section>
 
       {/* The Problem / Solution Grid */}
       <section className="py-32 bg-white overflow-hidden">
