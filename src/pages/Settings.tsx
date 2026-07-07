@@ -7,7 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import type { DesignLanguage, ColorMode, AccentColor } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
 import { BSP_PROVIDERS, DEFAULT_BSP_PROVIDER } from '../lib/bspProviders';
-import { Moon, Sun, Monitor, Palette, CheckCircle2, HelpCircle, Code, Copy, RefreshCw, ShoppingBag, Zap, Trash } from 'lucide-react';
+import { Moon, Sun, Monitor, Palette, CheckCircle2, HelpCircle, Code, Copy, RefreshCw, ShoppingBag, Zap, Trash, Bot } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { tenant, session } = useAuth();
@@ -27,9 +27,23 @@ const Settings: React.FC = () => {
   const [businessName, setBusinessName] = useState('');
   const [savingGeneral, setSavingGeneral] = useState(false);
 
+  const [aiSettings, setAiSettings] = useState<{
+    welcome_message_type: 'fixed' | 'llm';
+    fixed_welcome_message: string;
+    system_prompt: string;
+  }>({
+    welcome_message_type: 'fixed',
+    fixed_welcome_message: '',
+    system_prompt: ''
+  });
+  const [savingAiSettings, setSavingAiSettings] = useState(false);
+
   useEffect(() => {
     if (tenant) {
       setBusinessName(tenant.business_name || '');
+      if (tenant.ai_settings) {
+        setAiSettings(tenant.ai_settings);
+      }
     }
   }, [tenant]);
 
@@ -48,6 +62,24 @@ const Settings: React.FC = () => {
       alert('Settings saved successfully!');
     } else {
       alert('Failed to save settings: ' + error.message);
+    }
+  };
+
+  const handleSaveAiSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenant) return;
+    setSavingAiSettings(true);
+    
+    const { error } = await (supabase
+      .from('tenants') as any)
+      .update({ ai_settings: aiSettings })
+      .eq('id', tenant.id);
+      
+    setSavingAiSettings(false);
+    if (!error) {
+      alert('AI Chatbot settings saved successfully!');
+    } else {
+      alert('Failed to save AI settings: ' + error.message);
     }
   };
 
@@ -165,6 +197,18 @@ const Settings: React.FC = () => {
                 onClick={() => setActiveTab('quick_replies')}
               >
                 Quick Replies
+              </button>
+              <button 
+                className={cn(
+                  "px-4 py-3 text-left font-medium transition-all theme-button border border-transparent",
+                  activeTab === 'ai_chatbot' ? "bg-brand-accent text-white" : "text-theme-text-muted hover:bg-theme-surface-hover hover:text-brand-accent"
+                )}
+                onClick={() => setActiveTab('ai_chatbot')}
+              >
+                <div className="flex items-center gap-2">
+                  <Bot size={16} />
+                  AI Chatbot
+                </div>
               </button>
             </>
           )}
@@ -371,6 +415,70 @@ const Settings: React.FC = () => {
 
           {activeTab === 'quick_replies' && (
             <QuickRepliesSettings tenantId={tenant.id} />
+          )}
+
+          {activeTab === 'ai_chatbot' && (
+            <div className="theme-card p-8">
+              <h2 className="text-xl font-display font-bold text-theme-text mb-2">AI Chatbot & Greetings</h2>
+              <p className="text-theme-text-muted mb-6">
+                Configure how the AI responds when a customer messages you for the first time.
+              </p>
+              
+              <form onSubmit={handleSaveAiSettings} className="space-y-6 max-w-2xl">
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-theme-text-muted">Inbound Greeting Strategy</label>
+                  <select 
+                    value={aiSettings.welcome_message_type}
+                    onChange={(e) => setAiSettings({...aiSettings, welcome_message_type: e.target.value as 'fixed' | 'llm'})}
+                    className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-brand-accent transition-colors theme-button"
+                  >
+                    <option value="fixed">Fixed Welcome Message (Recommended)</option>
+                    <option value="llm">LLM-First (AI responds directly to "Hi")</option>
+                  </select>
+                  <p className="text-xs text-theme-text-muted mt-1">
+                    Fixed messages guarantee a brand-safe greeting. LLM-First allows the AI to generate dynamic greetings but is less predictable.
+                  </p>
+                </div>
+
+                {aiSettings.welcome_message_type === 'fixed' && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-theme-text-muted">Fixed Welcome Message</label>
+                    <textarea 
+                      value={aiSettings.fixed_welcome_message}
+                      onChange={(e) => setAiSettings({...aiSettings, fixed_welcome_message: e.target.value})}
+                      placeholder="Hi there! Welcome to our business. I'm your AI assistant. How can I help you today?"
+                      rows={3}
+                      className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-brand-accent transition-colors theme-button resize-none"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-theme-text-muted">AI System Prompt (Persona)</label>
+                  <textarea 
+                    value={aiSettings.system_prompt}
+                    onChange={(e) => setAiSettings({...aiSettings, system_prompt: e.target.value})}
+                    placeholder="You are a helpful customer support agent for Acme Corp..."
+                    rows={6}
+                    className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-brand-accent transition-colors theme-button font-mono text-sm"
+                  />
+                  <p className="text-xs text-theme-text-muted mt-1">
+                    Provide instructions to the LLM about your business, tone, and how it should answer questions.
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-theme-border">
+                  <button 
+                    type="submit" 
+                    disabled={savingAiSettings}
+                    className="px-6 py-3 bg-brand-accent text-white font-bold transition-opacity hover:bg-brand-accent-light theme-button disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={18} />
+                    {savingAiSettings ? 'Saving...' : 'Save AI Settings'}
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
         </div>
       </div>
