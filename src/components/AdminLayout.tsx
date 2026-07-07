@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Server, Settings, LogOut, ArrowLeft, Menu, X, Users, CreditCard, Building, PlusCircle } from 'lucide-react';
+import { Server, Settings, LogOut, ArrowLeft, Menu, X, Users, CreditCard, Building, PlusCircle, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminLayout: React.FC = () => {
   const { user, signOut, isPlatformAdmin } = useAuth();
+  const { colorMode, setColorMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -97,6 +99,13 @@ const AdminLayout: React.FC = () => {
                 {user?.email}
               </p>
             </div>
+            <button
+              onClick={() => setColorMode(colorMode === 'light' ? 'dark' : 'light')}
+              className="p-2 text-theme-text-muted hover:text-theme-text hover:bg-theme-surface-hover rounded transition-colors"
+              title="Toggle Theme"
+            >
+              {colorMode === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
           </div>
           <button
             onClick={handleLogout}
@@ -114,14 +123,22 @@ const AdminLayout: React.FC = () => {
         {/* Mobile Top Bar */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 bg-theme-bg border-b border-theme-border text-theme-text">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-theme-text font-bold text-lg">
+            <div className="w-8 h-8 rounded bg-brand-accent flex items-center justify-center text-theme-text font-bold text-lg">
               A
             </div>
             <span className="font-bold tracking-tight">Admin Portal</span>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-theme-text-muted hover:text-theme-text">
-            <Menu size={24} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setColorMode(colorMode === 'light' ? 'dark' : 'light')}
+              className="p-2 text-theme-text-muted hover:text-theme-text"
+            >
+              {colorMode === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-theme-text-muted hover:text-theme-text">
+              <Menu size={24} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
