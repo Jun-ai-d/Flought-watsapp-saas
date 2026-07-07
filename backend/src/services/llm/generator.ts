@@ -32,8 +32,15 @@ export interface LLMResponse {
  * @param chunks The top-K similar chunks retrieved from Postgres
  * @param tenantBusinessName The name of the business to give the AI context
  * @param history The last N messages in the conversation for contextual memory
+ * @param systemPromptOverride Optional custom system prompt from tenant settings
  */
-export async function generateRAGResponse(query: string, chunks: RetrievedChunk[], tenantBusinessName: string, history: ChatMessage[] = []): Promise<LLMResponse> {
+export async function generateRAGResponse(
+  query: string, 
+  chunks: RetrievedChunk[], 
+  tenantBusinessName: string, 
+  history: ChatMessage[] = [],
+  systemPromptOverride?: string
+): Promise<LLMResponse> {
   // Join the retrieved chunks into a single text block to inject into the prompt
   const contextText = chunks.map(c => c.content).join('\n\n');
   
@@ -47,8 +54,10 @@ export async function generateRAGResponse(query: string, chunks: RetrievedChunk[
   
   // This System Prompt establishes the strict RAG boundaries.
   // Rule #2 prevents hallucination by explicitly ordering the AI to fail gracefully.
-  const systemPrompt = `You are a helpful customer service assistant for ${tenantBusinessName} on WhatsApp.
-Your goal is to answer the customer's query using ONLY the provided knowledge base context.
+  const basePrompt = systemPromptOverride || `You are a helpful customer service assistant for ${tenantBusinessName} on WhatsApp.
+Your goal is to answer the customer's query using ONLY the provided knowledge base context.`;
+
+  const systemPrompt = `${basePrompt}
 
 <knowledge_base>
 ${contextText}

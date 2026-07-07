@@ -105,7 +105,7 @@ export async function processAutomationPipeline(
    */
   const [chunks, { data: tenant }, { data: history }] = await Promise.all([
     retrieveRelevantChunks(tenantId, messageText),
-    supabaseAdmin.from('tenants').select('business_name').eq('id', tenantId).single(),
+    supabaseAdmin.from('tenants').select('business_name, ai_settings').eq('id', tenantId).single(),
     supabaseAdmin
       .from('messages')
       .select('direction, content')
@@ -114,6 +114,20 @@ export async function processAutomationPipeline(
       .order('created_at', { ascending: false })
       .limit(6)
   ]);
+
+  // AI Settings check (fixed greeting vs LLM)
+  const aiSettings = tenant?.ai_settings as Record<string, any> | undefined;
+  
+  // If the conversation is brand new (history is empty or only has the current inbound message),
+  // and the tenant has selected a fixed greeting, we bypass RAG entirely.
+  // Note: history contains the CURRENT message because it was inserted in processSingleMessage, 
+  // so a "new" conversation has exactly 1 message in history.
+  if (history && history.length === 1 && aiSettings?.greeting_type === 'fixed') {
+    const fixedGreeting = aiSettings.fixed_greeting_message || 'Hi, how can we help you today?';
+    console.log(`[Pipeline] New conversation. Using fixed greeting: "${fixedGreeting}"`);
+    await sendBotReply(tenantId, conversationId, customerPhone, providerName, fixedGreeting, 'faq');
+    return;
+  }
 
   /**
    * Note 7: Safe Fallback for Empty Knowledge Bases
@@ -151,7 +165,9 @@ export async function processAutomationPipeline(
     content: h.content
   }));
 
-  const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory);
+  const systemPromptOverride = aiSettings?.system_prompt;
+
+  const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory, systemPromptOverride);
 
   /**
    * Note 9: Non-blocking Analytics Tracking
