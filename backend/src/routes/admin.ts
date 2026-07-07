@@ -79,10 +79,10 @@ router.get('/metrics', async (req, res) => {
 
     let expensesRes: any = { data: [] };
     
-    const [subsRes, usageRes, tenantsRes] = await Promise.all([
-      supabaseAdmin.from('subscriptions').select('price_inr').eq('status', 'active'),
-      supabaseAdmin.from('usage_tracking').select('messages_sent, llm_calls, stt_minutes').eq('billing_period', billingPeriod),
-      supabaseAdmin.from('tenants').select('id', { count: 'exact' }).eq('status', 'active')
+    const [mrrRes, usageRes, tenantsRes] = await Promise.all([
+      supabaseAdmin.rpc('get_total_mrr'),
+      supabaseAdmin.rpc('get_total_usage', { p_billing_period: billingPeriod }),
+      supabaseAdmin.from('tenants').select('id', { count: 'exact', head: true }).eq('status', 'active')
     ]);
 
     try {
@@ -92,18 +92,13 @@ router.get('/metrics', async (req, res) => {
     }
 
     // Income
-    const mrr = (subsRes.data || []).reduce((acc: number, sub: any) => acc + Number(sub.price_inr), 0);
+    const mrr = Number(mrrRes.data || 0);
     
     // API Costs
-    let totalMessages = 0;
-    let totalLlm = 0;
-    let totalStt = 0;
-    
-    (usageRes.data || []).forEach(usage => {
-      totalMessages += (usage.messages_sent || 0);
-      totalLlm += (usage.llm_calls || 0);
-      totalStt += Number(usage.stt_minutes || 0);
-    });
+    const usageData = usageRes.data || { total_messages_sent: 0, total_llm_calls: 0, total_stt_minutes: 0 };
+    const totalMessages = Number(usageData.total_messages_sent || 0);
+    const totalLlm = Number(usageData.total_llm_calls || 0);
+    const totalStt = Number(usageData.total_stt_minutes || 0);
 
     const msgCost = totalMessages * 0.75; // ₹0.75 per msg
     const llmCost = totalLlm * 1.50; // ₹1.5 per call

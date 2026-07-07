@@ -36,8 +36,8 @@ const AdminLayout: React.FC = () => {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-950 border-r border-slate-800 z-20 shrink-0 text-white shadow-xl">
         <div className="h-16 flex items-center px-6 border-b border-slate-800 gap-3 shrink-0 bg-slate-950">
-          <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-            A
+          <div className="w-8 h-8 rounded bg-white flex items-center justify-center shadow-sm p-1">
+            <img src="/logo.png" alt="Flought Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-white truncate">
             Flought Admin

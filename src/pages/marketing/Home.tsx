@@ -1,31 +1,23 @@
-import React from 'react';
-import { ArrowRight, Bot, Zap, ShieldCheck, Database, MessageSquare, ArrowUpRight, ShoppingCart, Activity } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { ArrowRight, Bot, Zap, ShieldCheck, Database, MessageSquare, ArrowUpRight, ShoppingCart, Activity, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+import anime from 'animejs';
+import HeroPipeline from '../../components/3d/HeroPipeline';
 
-// Helper component for 3D Tilt Card
 const TiltCard = ({ children, className }: { children: React.ReactNode, className?: string }) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   
-  const mouseXSpring = x; 
-  const mouseYSpring = y;
-  
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["10deg", "-10deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-10deg", "10deg"]);
+  const rotateX = useTransform(y, [-0.5, 0.5], ["5deg", "-5deg"]);
+  const rotateY = useTransform(x, [-0.5, 0.5], ["-5deg", "5deg"]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-    
-    x.set(xPct);
-    y.set(yPct);
+    x.set(mouseX / rect.width - 0.5);
+    y.set(mouseY / rect.height - 0.5);
   };
 
   const handleMouseLeave = () => {
@@ -40,215 +32,371 @@ const TiltCard = ({ children, className }: { children: React.ReactNode, classNam
       onMouseLeave={handleMouseLeave}
       className={`perspective-1000 ${className}`}
     >
-      <div style={{ transform: "translateZ(30px)" }} className="h-full">
+      <div style={{ transform: "translateZ(20px)" }} className="h-full">
         {children}
       </div>
     </motion.div>
   );
 };
 
+const HeroSection = () => {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (gridRef.current) {
+      anime({
+        targets: '.hero-grid-dot',
+        scale: [
+          {value: .1, easing: 'easeOutSine', duration: 500},
+          {value: 1, easing: 'easeInOutQuad', duration: 1200}
+        ],
+        delay: anime.stagger(200, {grid: [20, 10], from: 'center'}),
+        loop: true,
+        direction: 'alternate'
+      });
+    }
+
+    if (textRef.current) {
+      anime.timeline({loop: false})
+      .add({
+        targets: '.hero-word',
+        translateY: [40, 0],
+        translateZ: 0,
+        opacity: [0, 1],
+        easing: "easeOutExpo",
+        duration: 1400,
+        delay: (el, i) => 200 + 100 * i
+      })
+      .add({
+        targets: '.hero-subtext',
+        translateY: [20, 0],
+        opacity: [0, 1],
+        easing: "easeOutExpo",
+        duration: 1400,
+      }, '-=1000')
+      .add({
+        targets: '.hero-btn',
+        translateY: [20, 0],
+        opacity: [0, 1],
+        easing: "easeOutExpo",
+        duration: 1400,
+        delay: anime.stagger(150)
+      });
+    }
+  }, []);
+
+  const rows = 10;
+  const cols = 20;
+  const dots = [];
+  for (let i = 0; i < rows * cols; i++) {
+    dots.push(<div key={i} className="hero-grid-dot w-1.5 h-1.5 rounded-full bg-[#002E23]/20" />);
+  }
+
+  return (
+    <section className="relative pt-32 pb-40 overflow-hidden bg-white border-b border-[#EAEAEA]">
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden opacity-40 pointer-events-none">
+        <div ref={gridRef} className="grid gap-8" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {dots}
+        </div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_20%,_#ffffff_70%)]"></div>
+      </div>
+      
+      <div className="relative z-10 max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          
+          <div className="text-left">
+            <div className="hero-subtext opacity-0 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#002E23]/5 text-[#002E23] font-semibold text-sm mb-8 border border-[#002E23]/10">
+              <span className="w-2 h-2 rounded-full bg-[#002E23] animate-pulse"></span>
+              Flought OS v2.0
+            </div>
+            
+            <h1 ref={textRef} className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-[#00221A] mb-8 leading-tight">
+              <span className="hero-word inline-block opacity-0">Put</span>{' '}
+              <span className="hero-word inline-block opacity-0">your</span>{' '}<br className="hidden md:block" />
+              <span className="hero-word inline-block opacity-0 text-[#002E23]">WhatsApp</span><br />
+              <span className="hero-word inline-block opacity-0">on</span>{' '}
+              <span className="hero-word inline-block opacity-0">autopilot.</span>
+            </h1>
+            
+            <p className="hero-subtext opacity-0 text-xl text-[#4A6B5D] max-w-xl mb-12 font-medium leading-relaxed">
+              Not a generic chatbot. A complete WhatsApp OS with native <strong className="text-[#002E23] font-semibold">Shopify & CRM sync</strong>, automated <strong className="text-[#002E23] font-semibold">Drip Campaigns</strong>, and strict <strong className="text-[#002E23] font-semibold">pgvector RAG</strong> to resolve 80% of support queries instantly.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-start gap-6">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
+                <Link to="/signup" className="hero-btn opacity-0 flex items-center gap-3 bg-[#002E23] text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-[#00392C] transition-colors shadow-md justify-center">
+                  Start Trial <ArrowRight size={20} />
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
+                <Link to="/features" className="hero-btn opacity-0 flex items-center gap-3 bg-[#FAFAFA] text-[#002E23] px-8 py-4 rounded-xl text-lg font-semibold border border-[#EAEAEA] hover:border-[#002E23]/20 hover:bg-white transition-colors shadow-sm justify-center">
+                  View Specs
+                </Link>
+              </motion.div>
+            </div>
+          </div>
+
+          <div className="hero-3d relative lg:h-[700px] flex items-center justify-center z-50">
+            <HeroPipeline queryVolume={1000} percentSolved={0.8} />
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const Home: React.FC = () => {
   return (
-    <div className="flex flex-col w-full bg-[#f1f5f9]">
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-40 overflow-hidden border-b-[16px] border-[#C1440E] bg-white">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:64px_64px]"></div>
-        
-        <div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
-          <div className="inline-block border-2 border-black px-4 py-1 mb-8 bg-white font-['Courier_Prime'] font-bold text-xs uppercase shadow-[4px_4px_0_0_#000]">
-            <span className="text-[#C1440E] mr-2">●</span> v2.0 SYSTEM ONLINE
-          </div>
-          <h1 className="text-7xl md:text-[8rem] font-black tracking-tighter leading-[0.9] text-black mb-8 uppercase">
-            Put your WhatsApp <br />
-            <span className="text-transparent" style={{ WebkitTextStroke: "2px black" }}>On Autopilot.</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-black/80 max-w-3xl mx-auto mb-12 font-['Courier_Prime'] font-bold leading-relaxed border-l-4 border-[#C1440E] pl-6 text-left">
-            Not a generic chatbot. A complete WhatsApp OS with native <strong className="text-black bg-[#C1440E]/10 px-1">Shopify & CRM sync</strong>, automated <strong className="text-black bg-[#C1440E]/10 px-1">Drip Campaigns</strong>, and strict <strong className="text-black bg-[#C1440E]/10 px-1">pgvector RAG</strong> to resolve 80% of support and sales queries instantly.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95, y: 4, x: 4 }}>
-              <Link to="/signup" className="flex items-center gap-3 bg-[#C1440E] text-white px-8 py-5 text-xl font-black uppercase border-4 border-black shadow-[8px_8px_0_0_#000] hover:shadow-[4px_4px_0_0_#000] transition-all">
-                Start Trial <ArrowRight size={24} />
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95, y: 4, x: 4 }}>
-              <Link to="/features" className="flex items-center gap-3 bg-white text-black px-8 py-5 text-xl font-black uppercase border-4 border-black shadow-[8px_8px_0_0_#C1440E] hover:shadow-[4px_4px_0_0_#C1440E] transition-all">
-                View Specs
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+    <div className="flex flex-col w-full bg-[#FAFAFA] text-[#00221A]">
+      <HeroSection />
 
       {/* Logos Section */}
-      <section className="py-6 border-b-2 border-black bg-white overflow-hidden">
-        <div className="flex whitespace-nowrap animate-[scroll_20s_linear_infinite] items-center gap-16 font-['Courier_Prime'] font-bold text-sm text-black/50 uppercase tracking-widest">
+      <section className="py-12 border-b border-[#EAEAEA] bg-[#FAFAFA] overflow-hidden">
+        <div className="flex whitespace-nowrap animate-[scroll_40s_linear_infinite] items-center gap-24 font-semibold text-sm text-[#4A6B5D] uppercase tracking-wider">
           {Array(8).fill(0).map((_, i) => (
             <React.Fragment key={i}>
-              <span>Trusted by:</span>
-              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black"></div> ACME CORP</span>
-              <span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-black rounded-full"></div> GLOBEX</span>
-              <span className="flex items-center gap-2"><div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-black"></div> INITECH</span>
-              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black rounded-sm rotate-45"></div> SOYLENT</span>
+              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-[#002E23] rounded-sm"></div> ACME CORP</span>
+              <span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-[#002E23] rounded-full"></div> GLOBEX</span>
+              <span className="flex items-center gap-2"><div className="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-[#002E23]"></div> INITECH</span>
             </React.Fragment>
           ))}
         </div>
       </section>
 
       {/* The Problem / Solution Grid */}
-      <section className="py-32 border-b-2 border-black">
+      <section className="py-32 bg-white overflow-hidden">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-16 border-l-8 border-black pl-8">
-            <h2 className="text-5xl md:text-7xl font-black text-black uppercase leading-none mb-4">
-              The status quo <br/> is broken.
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-20"
+          >
+            <h2 className="text-4xl md:text-6xl font-bold text-[#00221A] tracking-tight mb-6">
+              The status quo is broken.
             </h2>
-            <p className="font-['Courier_Prime'] font-bold text-black/50 uppercase tracking-widest">Compare your current process.</p>
-          </div>
+            <p className="text-[#4A6B5D] text-xl max-w-2xl mx-auto">See how Flought fundamentally changes the way you operate.</p>
+          </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-12 md:gap-8">
-            {/* Legacy Box */}
-            <TiltCard>
-              <div className="bg-white border-4 border-black p-8 shadow-[12px_12px_0_0_#000] relative h-full flex flex-col">
-                <div className="absolute -top-4 -right-4 bg-black text-white w-8 h-8 flex items-center justify-center font-['Courier_Prime'] font-bold rotate-12 border-2 border-black">
-                  X
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <TiltCard>
+                <div className="bg-[#FAFAFA] rounded-3xl p-10 border border-[#EAEAEA] h-full flex flex-col shadow-sm">
+                  <div className="w-12 h-12 bg-white text-[#4A6B5D] rounded-2xl flex items-center justify-center mb-8 border border-[#EAEAEA] shadow-sm">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-8 text-[#00221A]">Legacy Operations</h3>
+                  <ul className="space-y-6 text-lg text-[#4A6B5D]">
+                    <li className="flex items-start gap-4"><span className="text-[#4A6B5D] mt-1">•</span>Sales leads go cold while waiting for human replies.</li>
+                    <li className="flex items-start gap-4"><span className="text-[#4A6B5D] mt-1">•</span>Agents repeat the same basic answers manually.</li>
+                    <li className="flex items-start gap-4"><span className="text-[#4A6B5D] mt-1">•</span>Zero visibility into what customers are actually asking.</li>
+                    <li className="flex items-start gap-4"><span className="text-[#4A6B5D] mt-1">•</span>Scaling volume requires blindly hiring more heads.</li>
+                  </ul>
                 </div>
-                <h3 className="text-2xl font-black uppercase mb-8 pb-4 border-b-4 border-black">
-                  Legacy Operations
-                </h3>
-                <ul className="space-y-6 font-['Courier_Prime'] font-bold text-lg">
-                  <li className="flex items-start gap-4 border-b-2 border-black/10 pb-4">
-                    <span className="text-black bg-black/10 px-2 py-1">&gt;</span>
-                    Sales leads go cold while waiting for replies.
-                  </li>
-                  <li className="flex items-start gap-4 border-b-2 border-black/10 pb-4">
-                    <span className="text-black bg-black/10 px-2 py-1">&gt;</span>
-                    Agents repeat the same answers manually.
-                  </li>
-                  <li className="flex items-start gap-4 border-b-2 border-black/10 pb-4">
-                    <span className="text-black bg-black/10 px-2 py-1">&gt;</span>
-                    No visibility into what customers are asking.
-                  </li>
-                  <li className="flex items-start gap-4">
-                    <span className="text-black bg-black/10 px-2 py-1">&gt;</span>
-                    Scaling volume requires hiring more heads.
-                  </li>
-                </ul>
-              </div>
-            </TiltCard>
+              </TiltCard>
+            </motion.div>
 
-            {/* Flought Box */}
-            <TiltCard>
-              <div className="bg-[#C1440E] border-4 border-black p-8 shadow-[12px_12px_0_0_#000] text-white relative h-full flex flex-col">
-                <div className="absolute -top-4 -right-4 bg-white text-black w-8 h-8 flex items-center justify-center font-['Courier_Prime'] font-bold -rotate-12 border-2 border-black">
-                  ✓
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <TiltCard>
+                <div className="bg-[#002E23] rounded-3xl p-10 h-full flex flex-col shadow-xl shadow-[#00221A]/10 text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-[#00392C] text-white font-bold text-xs uppercase tracking-wider px-4 py-1.5 rounded-bl-xl">The Flought Way</div>
+                  <motion.div 
+                    animate={{ rotate: [0, 10, -10, 0] }} 
+                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                    className="w-12 h-12 bg-white text-[#002E23] rounded-2xl flex items-center justify-center mb-8 shadow-md"
+                  >
+                    <ShieldCheck size={24} />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold mb-8">Autonomous Scale</h3>
+                  <ul className="space-y-6 text-lg text-[#F8F9FA]">
+                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Instant, strict RAG answers block 80% of volume.</li>
+                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Automated drip campaigns re-engage dead leads.</li>
+                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Native Shopify sync handles order tracking automatically.</li>
+                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Human agents only step in for high-value closures.</li>
+                  </ul>
                 </div>
-                <h3 className="text-2xl font-black uppercase mb-8 pb-4 border-b-4 border-black">
-                  The Flought System
-                </h3>
-                <ul className="space-y-6 font-['Courier_Prime'] font-bold text-lg">
-                  <li className="flex items-start gap-4 border-b-2 border-black/20 pb-4">
-                    <span className="text-[#C1440E] bg-white px-2 py-1">&gt;</span>
-                    Drip campaigns capture & convert leads 24/7.
-                  </li>
-                  <li className="flex items-start gap-4 border-b-2 border-black/20 pb-4">
-                    <span className="text-[#C1440E] bg-white px-2 py-1">&gt;</span>
-                    Vector RAG instantly resolves 80% of FAQs.
-                  </li>
-                  <li className="flex items-start gap-4 border-b-2 border-black/20 pb-4">
-                    <span className="text-[#C1440E] bg-white px-2 py-1">&gt;</span>
-                    Dashboard Analytics tracks hot topics & sentiment.
-                  </li>
-                  <li className="flex items-start gap-4">
-                    <span className="text-[#C1440E] bg-white px-2 py-1">&gt;</span>
-                    Infinite scale. Humans only handle escalations.
-                  </li>
-                </ul>
-              </div>
-            </TiltCard>
+              </TiltCard>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-32 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex justify-between items-end mb-16 border-b-4 border-black pb-8">
-            <div className="border-l-8 border-[#C1440E] pl-8">
-              <h2 className="text-5xl md:text-7xl font-black text-black uppercase leading-none mb-4">
-                Core Tech.
-              </h2>
-              <p className="font-['Courier_Prime'] font-bold text-black/50 uppercase tracking-widest">Built for performance.</p>
-            </div>
-            <Link to="/features" className="hidden md:flex items-center gap-2 font-['Courier_Prime'] font-bold text-sm uppercase border-2 border-black px-4 py-2 hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0_0_#C1440E]">
-              Read Docs <ArrowUpRight size={16} />
-            </Link>
-          </div>
+      {/* Feature Highlights Grid */}
+      <section className="py-32 bg-[#FAFAFA] border-y border-[#EAEAEA] overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6">
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-[#00221A] tracking-tight mb-4">
+              Everything you need to scale.
+            </h2>
+            <p className="text-[#4A6B5D] text-xl">A complete OS designed for modern commerce.</p>
+          </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="border-4 border-black p-6 hover:-translate-y-2 transition-transform bg-[#f1f5f9] shadow-[8px_8px_0_0_#000]">
-              <div className="w-12 h-12 bg-black flex items-center justify-center mb-6">
-                <Database size={24} className="text-white" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
+                  <Database size={24} />
+                </motion.div>
               </div>
-              <h3 className="text-xl font-black uppercase mb-4">Vector RAG</h3>
-              <p className="font-['Courier_Prime'] font-bold text-sm text-black/70">
-                Native pgvector integration for lightning-fast similarity search on your PDFs and website data. Zero hallucinations.
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Vector RAG</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                We use pgvector to embed your PDFs and knowledge base. The AI strictly answers based on your context, eliminating hallucinations.
               </p>
-            </div>
-
-            <div className="border-4 border-black p-6 hover:-translate-y-2 transition-transform bg-white shadow-[8px_8px_0_0_#000]">
-              <div className="w-12 h-12 bg-black flex items-center justify-center mb-6">
-                <ShoppingCart size={24} className="text-white" />
-              </div>
-              <h3 className="text-xl font-black uppercase mb-4">Commerce Sync</h3>
-              <p className="font-['Courier_Prime'] font-bold text-sm text-black/70">
-                Deep Shopify integration. Automatically pull catalogs, handle order statuses, and process carts via WhatsApp.
-              </p>
-            </div>
-
-            <div className="border-4 border-black p-6 hover:-translate-y-2 transition-transform bg-[#f1f5f9] shadow-[8px_8px_0_0_#000]">
-              <div className="w-12 h-12 bg-black flex items-center justify-center mb-6">
-                <Activity size={24} className="text-white" />
-              </div>
-              <h3 className="text-xl font-black uppercase mb-4">Drip Campaigns</h3>
-              <p className="font-['Courier_Prime'] font-bold text-sm text-black/70">
-                Visual flow builder to trigger automated multi-day marketing sequences. Follow up with leads without lifting a finger.
-              </p>
-            </div>
+            </motion.div>
             
-             <div className="border-4 border-black p-6 hover:-translate-y-2 transition-transform bg-white shadow-[8px_8px_0_0_#000]">
-              <div className="w-12 h-12 bg-black flex items-center justify-center mb-6">
-                <MessageSquare size={24} className="text-white" />
+            {/* Feature 2 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}>
+                  <Activity size={24} />
+                </motion.div>
               </div>
-              <h3 className="text-xl font-black uppercase mb-4">Handoff Intelligence</h3>
-              <p className="font-['Courier_Prime'] font-bold text-sm text-black/70">
-                When AI pauses, humans take over. Flought instantly generates AI-handoff summaries so agents know exactly what to do.
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Drip Campaigns</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                Build sophisticated WhatsApp sequences to nurture leads, recover abandoned carts, and re-engage dormant users over time.
               </p>
-            </div>
+            </motion.div>
+            
+            {/* Feature 3 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ x: [0, 3, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
+                  <ShoppingCart size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Commerce Sync</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                Natively connected to Shopify. Customers can check order status, browse catalogs, and get support entirely within WhatsApp.
+              </p>
+            </motion.div>
+
+            {/* Feature 4 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}>
+                  <MessageSquare size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Unified Inbox</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                When the AI can't answer, it escalates smoothly. Human agents step into a shared inbox with full chat history and context.
+              </p>
+            </motion.div>
+
+            {/* Feature 5 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
+                  <Users size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Custom Personas</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                Train your AI to sound exactly like your brand. From formal corporate to friendly and casual, the AI adapts perfectly.
+              </p>
+            </motion.div>
+
+            {/* Feature 6 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ rotate: [0, 360] }} transition={{ repeat: Infinity, duration: 10, ease: "linear" }}>
+                  <Bot size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Real-time Analytics</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                Live dashboard tracking deflection rates, sentiment analysis, and agent performance across all your WhatsApp numbers.
+              </p>
+            </motion.div>
+
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 bg-[#C1440E] text-white border-t-4 border-black relative overflow-hidden">
-         <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-black opacity-10 rotate-45 border-[32px] border-white"></div>
-         <div className="absolute -top-32 -right-32 w-96 h-96 border-[32px] border-black opacity-20 rounded-full"></div>
-         
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <div className="bg-white text-black border-4 border-black p-12 shadow-[16px_16px_0_0_#000] inline-block">
-            <h2 className="text-5xl md:text-7xl font-black uppercase mb-6 leading-none">
-              Deploy <br/> Today.
-            </h2>
-            <p className="text-xl font-['Courier_Prime'] font-bold text-black/70 mb-12 uppercase">
-              Setup takes 5 minutes. ROI is immediate.
-            </p>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95, y: 4, x: 4 }} className="inline-block">
-              <Link to="/signup" className="px-12 py-6 bg-black text-white font-black text-xl uppercase border-4 border-black flex items-center justify-center gap-4 hover:bg-[#C1440E] transition-colors shadow-[8px_8px_0_0_#C1440E]">
-                Execute Trial
-              </Link>
-            </motion.div>
-          </div>
-        </div>
+      <section className="py-32 bg-white text-center overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="max-w-4xl mx-auto px-6"
+        >
+          <h2 className="text-4xl md:text-6xl font-bold text-[#00221A] mb-8 tracking-tight">
+            Stop losing customers to slow replies.
+          </h2>
+          <p className="text-xl text-[#4A6B5D] mb-12">
+            Join the forward-thinking brands running their operations on Flought.
+          </p>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-block">
+            <Link to="/signup" className="flex items-center gap-3 bg-[#002E23] text-white px-10 py-5 rounded-2xl text-xl font-bold hover:bg-[#00392C] transition-colors shadow-lg shadow-[#00221A]/10">
+              Start Free Trial <ArrowUpRight size={24} />
+            </Link>
+          </motion.div>
+        </motion.div>
       </section>
     </div>
   );

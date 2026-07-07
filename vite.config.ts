@@ -5,5 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  build: {}
+  resolve: {
+    dedupe: ['react', 'react-dom', 'three']
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei']
+  }
 })

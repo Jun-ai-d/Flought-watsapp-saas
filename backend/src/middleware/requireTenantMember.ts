@@ -19,9 +19,16 @@ export const requireTenantMember = async (req: TenantRequest, res: Response, nex
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  // IDOR Fix: Explicitly resolve tenantId prioritizing params, then query, then body.
-  // We MUST attach this specific resolved ID to the request so routes use the exact authorized ID.
-  const tenantId = req.params.tenantId || req.query.tenantId || req.body.tenantId;
+  // Prevent Parameter Pollution by ensuring tenantId is provided in exactly one place.
+  const inParams = !!req.params.tenantId;
+  const inQuery = !!req.query.tenantId;
+  const inBody = !!req.body?.tenantId;
+  
+  if ((inParams ? 1 : 0) + (inQuery ? 1 : 0) + (inBody ? 1 : 0) > 1) {
+    return res.status(400).json({ error: 'Parameter pollution detected: tenantId provided in multiple locations' });
+  }
+
+  const tenantId = req.params.tenantId || req.query.tenantId || req.body?.tenantId;
   
   if (!tenantId) {
     return res.status(400).json({ error: 'Missing tenantId in request' });

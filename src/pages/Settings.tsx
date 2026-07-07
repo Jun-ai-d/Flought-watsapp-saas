@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 import type { DesignLanguage, ColorMode, AccentColor } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
+import { BSP_PROVIDERS, DEFAULT_BSP_PROVIDER } from '../lib/bspProviders';
 import { Moon, Sun, Monitor, Palette, CheckCircle2, HelpCircle, Code, Copy, RefreshCw, ShoppingBag, Zap, Trash } from 'lucide-react';
 
 const Settings: React.FC = () => {
@@ -66,10 +67,10 @@ const Settings: React.FC = () => {
   };
 
   const accentColors: { id: AccentColor, hex: string, name: string }[] = [
-    { id: 'orange', hex: '#C1440E', name: 'Brand Orange' },
-    { id: 'blue', hex: '#2563EB', name: 'Ocean Blue' },
-    { id: 'green', hex: '#16A34A', name: 'Emerald Green' },
-    { id: 'purple', hex: '#9333EA', name: 'Deep Purple' }
+    { id: 'emerald', hex: '#002E23', name: 'Deep Forest' },
+    { id: 'sapphire', hex: '#60A5FA', name: 'Sapphire' },
+    { id: 'amethyst', hex: '#A78BFA', name: 'Amethyst' },
+    { id: 'amber', hex: '#FBBF24', name: 'Amber' }
   ];
 
   return (
@@ -419,7 +420,7 @@ const TeamList = ({ tenantId }: { tenantId: string }) => {
 };
 
 const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: any }) => {
-  const [bspForm, setBspForm] = useState({ provider: 'interakt', waba_id: '', phone_id: '', api_key: '', catalog_id: '' });
+  const [bspForm, setBspForm] = useState({ provider: DEFAULT_BSP_PROVIDER, waba_id: '', phone_id: '', api_key: '', catalog_id: '' });
   const [savingBsp, setSavingBsp] = useState(false);
 
   const { data: bspConfig, isLoading } = useQuery({
@@ -440,7 +441,7 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
   useEffect(() => {
     if (bspConfig) {
       setBspForm({
-        provider: bspConfig.bsp_provider || 'interakt',
+        provider: bspConfig.bsp_provider || DEFAULT_BSP_PROVIDER,
         waba_id: bspConfig.waba_id || '',
         phone_id: bspConfig.phone_number_id || '',
         catalog_id: bspConfig.catalog_id || '',
@@ -520,10 +521,9 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
             onChange={e => setBspForm({...bspForm, provider: e.target.value})}
             className="w-full p-4 border border-theme-border bg-theme-surface text-theme-text focus:border-brand-accent focus:outline-none theme-button font-bold text-base transition-colors"
           >
-            <option value="meta">Meta Cloud API</option>
-            <option value="gupshup">Gupshup</option>
-            <option value="interakt">Interakt</option>
-            <option value="wati">WATI</option>
+            {BSP_PROVIDERS.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
           </select>
         </div>
         
@@ -582,11 +582,18 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
           </div>
         </div>
         
-        {bspConfig?.webhook_verify_token && (
+        {bspConfig?.webhook_verify_token && bspForm.provider !== 'meta' && (
           <div className="bg-theme-bg p-6 border border-brand-accent/20 mt-6 bg-brand-accent/5" style={{ borderRadius: 'var(--radius-card)' }}>
-            <label className="block text-xs font-bold uppercase text-brand-accent mb-2 tracking-wide">Webhook Verify Token</label>
+            <label className="block text-xs font-bold uppercase text-brand-accent mb-2 tracking-wide">Webhook Verify Token (Gupshup)</label>
             <code className="text-theme-text font-mono text-lg break-all font-bold">{bspConfig.webhook_verify_token}</code>
-            <p className="text-sm text-theme-text-muted mt-3 font-medium">Please copy this token and configure it in your provider's Webhook dashboard.</p>
+            <p className="text-sm text-theme-text-muted mt-3 font-medium">Copy this token into your Gupshup webhook configuration.</p>
+          </div>
+        )}
+
+        {bspForm.provider === 'meta' && (
+          <div className="bg-theme-bg p-6 border border-blue-500/20 mt-6 bg-blue-500/5" style={{ borderRadius: 'var(--radius-card)' }}>
+            <label className="block text-xs font-bold uppercase text-blue-400 mb-2 tracking-wide">Meta Webhook Setup</label>
+            <p className="text-sm text-theme-text-muted font-medium">Meta Cloud API uses a single global Verify Token configured as the <code className="text-blue-400 font-mono">META_VERIFY_TOKEN</code> environment variable on your backend server. Do <strong>not</strong> use the per-tenant token shown here — ask your platform administrator for the correct value.</p>
           </div>
         )}
 

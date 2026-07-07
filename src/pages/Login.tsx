@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { MessageSquare, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { LinkedLogo } from '../components/Logo';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ const Login: React.FC = () => {
       {/* 21st.dev Ambient Lights */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#8B5CF6]/15 blur-[120px] mix-blend-screen opacity-80 animate-[pulse_10s_ease-in-out_infinite]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#C1440E]/15 blur-[120px] mix-blend-screen opacity-60 animate-[pulse_12s_ease-in-out_infinite_reverse]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#059669]/15 blur-[120px] mix-blend-screen opacity-60 animate-[pulse_12s_ease-in-out_infinite_reverse]"></div>
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)]"></div>
       </div>
 
@@ -54,12 +55,7 @@ const Login: React.FC = () => {
         className="relative z-10 w-full max-w-[420px]"
       >
         <div className="flex justify-center mb-10">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md group-hover:bg-white/10 transition-all">
-              <MessageSquare size={16} className="text-white" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-white">Flought</span>
-          </Link>
+          <LinkedLogo isWhite />
         </div>
 
         {/* Aceternity Glass Card */}

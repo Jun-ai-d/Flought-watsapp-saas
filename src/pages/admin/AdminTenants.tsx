@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
+import { BSP_PROVIDERS, DEFAULT_BSP_PROVIDER } from '../../lib/bspProviders';
 import { 
   Users, PlusCircle, Settings, X, 
   Building,
@@ -28,7 +29,7 @@ const AdminTenants: React.FC = () => {
   const [bspModalTenantId, setBspModalTenantId] = useState<string | null>(null);
   const [quotaModalTenant, setQuotaModalTenant] = useState<any | null>(null);
   
-  const [bspForm, setBspForm] = useState({ provider: 'interakt', waba_id: '', phone_id: '', api_key: '' });
+  const [bspForm, setBspForm] = useState({ provider: DEFAULT_BSP_PROVIDER, waba_id: '', phone_id: '', api_key: '' });
   const [savingBsp, setSavingBsp] = useState(false);
   
   const [newQuota, setNewQuota] = useState<number>(0);
@@ -63,13 +64,13 @@ const AdminTenants: React.FC = () => {
   useEffect(() => {
     if (bspConfig) {
       setBspForm({
-        provider: bspConfig.bsp_provider || 'interakt',
+        provider: bspConfig.bsp_provider || DEFAULT_BSP_PROVIDER,
         waba_id: bspConfig.waba_id || '',
         phone_id: bspConfig.phone_number_id || '',
         api_key: '' 
       });
     } else if (bspModalTenantId && !loadingBsp) {
-      setBspForm({ provider: 'interakt', waba_id: '', phone_id: '', api_key: '' });
+      setBspForm({ provider: DEFAULT_BSP_PROVIDER, waba_id: '', phone_id: '', api_key: '' });
     }
   }, [bspConfig, bspModalTenantId, loadingBsp]);
 
@@ -530,10 +531,8 @@ const AdminTenants: React.FC = () => {
                     className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded px-4 py-3 focus:outline-none focus:border-indigo-500 transition-all font-medium"
                     required
                   >
-                    <option value="interakt">Interakt</option>
+                    <option value="meta">Meta Cloud API</option>
                     <option value="gupshup">Gupshup</option>
-                    <option value="twilio">Twilio</option>
-                    <option value="360dialog">360dialog</option>
                   </select>
                 </div>
                 
@@ -579,11 +578,18 @@ const AdminTenants: React.FC = () => {
                   </p>
                 </div>
                 
-                {bspConfig?.webhook_verify_token && (
+                {bspConfig?.webhook_verify_token && bspForm.provider !== 'meta' && (
                   <div className="bg-slate-950 p-4 border border-slate-800 rounded mt-4">
-                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook Verify Token</label>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook Verify Token (Gupshup)</label>
                     <code className="text-indigo-400 font-mono text-sm break-all font-bold">{bspConfig.webhook_verify_token}</code>
-                    <p className="text-xs text-slate-500 mt-2 font-medium">Configure this token in your BSP dashboard.</p>
+                    <p className="text-xs text-slate-500 mt-2 font-medium">Configure this token in your Gupshup dashboard.</p>
+                  </div>
+                )}
+
+                {bspForm.provider === 'meta' && (
+                  <div className="bg-slate-950 p-4 border border-blue-800 rounded mt-4">
+                    <label className="block text-xs font-bold uppercase text-blue-400 mb-2">Meta Webhook Setup</label>
+                    <p className="text-xs text-slate-400 font-medium">Meta uses a global <code className="text-blue-400">META_VERIFY_TOKEN</code> env var on the backend. Do not use the per-tenant token.</p>
                   </div>
                 )}
 

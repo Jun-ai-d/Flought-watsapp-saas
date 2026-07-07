@@ -64,8 +64,8 @@ export function decryptToken(encryptedString: string): string {
 
     return decrypted;
   } catch (error) {
-    console.error('Decryption error:', error);
-    // Fallback to returning raw string if decryption fails (e.g. key changed)
-    return encryptedString;
+    // Do NOT silently return the ciphertext — that would send garbled data to the BSP API,
+    // producing a mysterious 401 with no indication the real cause is decryption.
+    throw new Error(`Decryption failed for stored token. The DB_ENCRYPTION_KEY may have been rotated or is incorrect. Original error: ${error}`);
   }
 }

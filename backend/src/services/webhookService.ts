@@ -5,7 +5,7 @@ export async function fireOutboundWebhook(tenantId: string, eventData: any) {
     // Check if the tenant has a webhook configured
     const { data: config } = await supabaseAdmin
       .from('developer_settings')
-      .select('webhook_url')
+      .select('webhook_url, api_key')
       .eq('tenant_id', tenantId)
       .single();
 
@@ -43,15 +43,29 @@ export async function fireOutboundWebhook(tenantId: string, eventData: any) {
       return;
     }
 
+    const payloadString = JSON.stringify(eventData);
+    let signature = '';
+    if (config.api_key) {
+      const crypto = require('crypto');
+      signature = 'sha256=' + crypto.createHmac('sha256', config.api_key).update(payloadString).digest('hex');
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'FloughtHQ-Webhook/1.0',
+      'X-Tenant-ID': tenantId
+    };
+    
+    if (signature) {
+      headers['X-Hub-Signature-256'] = signature;
+    }
+
     // Fire the webhook asynchronously
     fetch(config.webhook_url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'FloughtHQ-Webhook/1.0',
-        'X-Tenant-ID': tenantId
-      },
-      body: JSON.stringify(eventData)
+      headers,
+      body: payloadString,
+      signal: AbortSignal.timeout(5000)
     }).then(res => {
       console.log(`Outbound webhook fired to ${config.webhook_url}. Status: ${res.status}`);
     }).catch(err => {

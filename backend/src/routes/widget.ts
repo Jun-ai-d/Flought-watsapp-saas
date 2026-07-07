@@ -1,15 +1,25 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { processAutomationPipeline } from '../services/automation/pipeline';
-// Import removed
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+// Rate limiting: maximum 20 messages per IP every 15 minutes to prevent spam
+const widgetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 20, 
+  message: { error: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Endpoint for the web chat widget (Trial Testing)
 // We don't use requireApiKey here because the widget might be embedded on a public site,
 // but for the trial it's in the dashboard, so we expect a tenant_id in the body.
-router.post('/chat', async (req: any, res: any) => {
+router.post('/chat', widgetLimiter, async (req: any, res: any) => {
   const { tenantId, sessionId, text } = req.body;
+  const origin = req.get('origin');
 
   if (!tenantId || !sessionId || !text) {
     return res.status(400).json({ error: 'Missing required fields' });

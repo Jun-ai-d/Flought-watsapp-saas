@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 
 export type DesignLanguage = 'modern' | 'minimal' | 'professional';
 export type ColorMode = 'light' | 'dark' | 'system';
-export type AccentColor = 'orange' | 'blue' | 'green' | 'purple';
+export type AccentColor = 'emerald' | 'sapphire' | 'amethyst' | 'amber';
 
 interface ThemeContextType {
   designLanguage: DesignLanguage;
@@ -21,7 +21,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { session, tenant } = useAuth();
   const [designLanguage, setDesignLanguageState] = useState<DesignLanguage>('modern');
   const [colorMode, setColorModeState] = useState<ColorMode>('system');
-  const [accentColor, setAccentColorState] = useState<AccentColor>('orange');
+  const [accentColor, setAccentColorState] = useState<AccentColor>('emerald');
   const initialized = useRef(false);
 
   // Load initial from DB or local storage
@@ -103,45 +103,54 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.classList.add(`theme-${designLanguage}`);
   }, [designLanguage]);
 
-  // Apply color mode
+  // Apply color mode and accent color together
   useEffect(() => {
-    const applyColorMode = (mode: 'light' | 'dark') => {
-      const root = window.document.documentElement;
+    const root = window.document.documentElement;
+    
+    // Resolve mode
+    let isDark = false;
+    if (colorMode === 'system') {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } else {
+      isDark = colorMode === 'dark';
+    }
+
+    const applyTheme = (dark: boolean) => {
+      // Set structural classes
       root.classList.remove('light-mode', 'dark-mode');
-      root.classList.add(`${mode}-mode`);
+      root.classList.add(dark ? 'dark-mode' : 'light-mode');
+
+      // Set accent colors based on mode
+      const darkAccents = {
+        emerald: { main: '#002E23', light: '#00392C' },
+        sapphire: { main: '#60A5FA', light: '#93C5FD' },
+        amethyst: { main: '#A78BFA', light: '#C4B5FD' },
+        amber: { main: '#FBBF24', light: '#FCD34D' }
+      };
+
+      const lightAccents = {
+        emerald: { main: '#002E23', light: '#00392C' },
+        sapphire: { main: '#2563EB', light: '#3B82F6' },
+        amethyst: { main: '#7C3AED', light: '#8B5CF6' },
+        amber: { main: '#B45309', light: '#D97706' }
+      };
+
+      const palette = dark ? darkAccents : lightAccents;
+      
+      const safeAccent = palette[accentColor] || palette.emerald;
+      root.style.setProperty('--color-accent', safeAccent.main);
+      root.style.setProperty('--color-accent-light', safeAccent.light);
     };
+
+    applyTheme(isDark);
 
     if (colorMode === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      applyColorMode(mediaQuery.matches ? 'dark' : 'light');
-
-      const listener = (e: MediaQueryListEvent) => applyColorMode(e.matches ? 'dark' : 'light');
+      const listener = (e: MediaQueryListEvent) => applyTheme(e.matches);
       mediaQuery.addEventListener('change', listener);
       return () => mediaQuery.removeEventListener('change', listener);
-    } else {
-      applyColorMode(colorMode);
     }
-  }, [colorMode]);
-
-  // Apply accent color
-  useEffect(() => {
-    const root = window.document.documentElement;
-    const colors = {
-      orange: '#C1440E',
-      blue: '#2563EB',
-      green: '#16A34A',
-      purple: '#9333EA'
-    };
-    root.style.setProperty('--color-accent', colors[accentColor]);
-    
-    const lightColors = {
-      orange: '#d65a24',
-      blue: '#3b82f6',
-      green: '#22c55e',
-      purple: '#a855f7'
-    };
-    root.style.setProperty('--color-accent-light', lightColors[accentColor]);
-  }, [accentColor]);
+  }, [colorMode, accentColor]);
 
   return (
     <ThemeContext.Provider value={{ designLanguage, colorMode, accentColor, setDesignLanguage, setColorMode, setAccentColor }}>

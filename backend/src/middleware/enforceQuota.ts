@@ -3,8 +3,8 @@ import { supabaseAdmin } from '../lib/supabase';
 import { TenantRequest } from './requireTenantMember';
 
 export const enforceQuota = async (req: TenantRequest, res: Response, next: NextFunction) => {
-  // Try to get tenantId from req.tenantId, then fallback
-  const tenantId = req.tenantId || req.params.tenantId || req.body.tenantId || req.query.tenantId;
+  // Strictly use the tenantId attached by the authentication middleware to prevent Parameter Pollution / IDOR
+  const tenantId = req.tenantId;
 
   if (!tenantId) {
     console.warn('enforceQuota: Missing tenantId in request');

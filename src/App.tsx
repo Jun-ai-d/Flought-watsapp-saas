@@ -36,6 +36,7 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
 const RefundPolicy = lazy(() => import('./pages/legal/RefundPolicy'));
+const DataDeletion = lazy(() => import('./pages/legal/DataDeletion'));
 
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -64,6 +65,7 @@ function App() {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/refund" element={<RefundPolicy />} />
+        <Route path="/data-deletion" element={<DataDeletion />} />
 
         {/* Protected Dashboard Routes */}
         <Route element={<ProtectedRoute />}>

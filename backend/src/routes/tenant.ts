@@ -107,6 +107,13 @@ router.post('/bsp', async (req: Request, res: Response) => {
       
     updateData.webhook_verify_token = existing?.webhook_verify_token || `wh-${tenantId}-${Date.now()}`;
     
+    // Default is_active to true for new configs. Explicit false in the request body can deactivate.
+    if (req.body.is_active !== undefined) {
+      updateData.is_active = req.body.is_active;
+    } else if (!existing) {
+      updateData.is_active = true;
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('tenant_bsp_config')
       .upsert(updateData, { onConflict: 'tenant_id' })

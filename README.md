@@ -32,7 +32,9 @@ This SaaS is built on a highly optimized, modern tech stack designed for speed, 
 - **Styling (Pro Max UI):** 
   - **Tailwind CSS v4:** The entire CSS architecture uses the highly-performant Tailwind v4 engine, resulting in a zero-runtime-overhead styling solution.
   - **Radix UI:** Headless UI primitives (Dialogs, Dropdowns) are used for accessible, unstyled interactive components.
-  - **Design Language:** Clean, brutalist layout featuring stark contrasting borders, flat colors, and mono-spaced fonts (`Courier Prime`) mixed with modern sans-serif (`Inter`, `Space Grotesk`).
+  - **Design Language:** Clean, premium aesthetic featuring dark mode glassmorphism, dynamic gradients, and the official Flought brand identity.
+- **3D Marketing Pipeline:** The landing page utilizes `@react-three/fiber` and `@react-three/rapier` for a real-time physics simulation, visualizing the automated AI-to-Human Handover pipeline in a beautiful, performant 3D canvas.
+- **Meta Compliance:** All legal documentation (Privacy Policy, Terms of Service, Data Deletion) is fully implemented and explicitly formatted to meet Meta's rigorous Business Solution Provider (BSP) dashboard requirements.
 
 ### Backend & Database
 - **Database:** PostgreSQL (via Supabase).

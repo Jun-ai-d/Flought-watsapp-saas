@@ -1,19 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { LinkedLogo } from '../../components/Logo';
 
 const TermsOfService: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-gray-300 font-sans selection:bg-[#C1440E] selection:text-white">
+    <div className="min-h-screen bg-[#0A0A0A] text-gray-300 font-sans selection:bg-[#059669] selection:text-white">
       {/* Simple Nav */}
       <nav className="flex items-center justify-between px-6 py-4 md:px-12 border-b border-white/10 sticky top-0 bg-[#0A0A0A]/90 backdrop-blur-md z-50">
-        <Link to="/" className="flex items-center gap-2 text-white hover:text-[#C1440E] transition-colors">
+        <Link to="/" className="flex items-center gap-2 text-white hover:text-[#059669] transition-colors">
           <ArrowLeft size={16} />
           <span className="text-sm font-medium">Back to Home</span>
         </Link>
         <div className="flex items-center gap-2">
-          <MessageSquare size={18} className="text-[#C1440E]" />
-          <span className="text-xl font-display font-bold text-white">Flought</span>
+          <LinkedLogo isWhite />
         </div>
       </nav>
 

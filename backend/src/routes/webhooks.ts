@@ -50,9 +50,13 @@ router.post('/meta', async (req, res) => {
     // Verify HMAC signature (only when META_APP_SECRET is configured)
     const signature = headers['x-hub-signature-256'];
     
+    const rawBody = (req as any).rawBody;
     if (appSecret && signature) {
+      if (!rawBody) {
+        return res.status(400).send('Missing raw body for signature verification');
+      }
       const crypto = require('crypto');
-      const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update((req as any).rawBody || '').digest('hex');
+      const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
       
       const sigBuffer = Buffer.from(signature);
       const expectedBuffer = Buffer.from(expectedSignature);

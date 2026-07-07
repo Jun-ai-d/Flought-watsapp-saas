@@ -73,7 +73,7 @@ const Signup: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border-l-4 border-[#C1440E] text-[#C1440E] text-sm font-medium">
+          <div className="mb-6 p-3 bg-red-50 border-l-4 border-[#059669] text-[#059669] text-sm font-medium">
             {error}
           </div>
         )}
@@ -126,7 +126,7 @@ const Signup: React.FC = () => {
         </form>
         
         <div className="mt-6 text-center text-sm text-[#666666]">
-          Already have an account? <a href="/login" className="text-[#C1440E] font-bold hover:underline">Sign in here</a>
+          Already have an account? <a href="/login" className="text-[#059669] font-bold hover:underline">Sign in here</a>
         </div>
       </div>
     </div>
