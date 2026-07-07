@@ -1361,4 +1361,122 @@ const CRMSettings = ({ tenantId, session }: { tenantId: string, session: any }) 
   );
 };
 
+const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => {
+  const [generating, setGenerating] = useState(false);
+  
+  const { data: devSettings, isLoading, refetch } = useQuery({
+    queryKey: ['developer_settings', tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('developer_settings')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }
+  });
+
+  const handleGenerateKey = async () => {
+    if (!window.confirm("Generating a new API key will invalidate any existing API key. Are you sure?")) {
+      return;
+    }
+    
+    setGenerating(true);
+    // Secure random hex for the API key
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    const hex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    const newKey = `sk_live_${hex}`;
+
+    try {
+      const { error } = await supabase
+        .from('developer_settings')
+        .upsert({
+          tenant_id: tenantId,
+          api_key: newKey,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'tenant_id' });
+
+      if (error) throw error;
+      alert('New API Key generated successfully!');
+      refetch();
+    } catch (err: any) {
+      alert('Failed to generate key: ' + err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('Copied to clipboard!');
+  };
+
+  if (isLoading) return <div className="text-theme-text-muted">Loading Developer settings...</div>;
+
+  return (
+    <div className="theme-card p-8 border-t-4 border-brand-accent">
+      <h2 className="text-xl font-display font-bold text-theme-text mb-2 flex items-center gap-2">
+        <Code size={24} /> Developer API
+      </h2>
+      <p className="text-theme-text-muted mb-6">
+        Generate an API key to authenticate external services like Postman, Zapier, or your custom backend with Flought.
+      </p>
+
+      <div className="space-y-6 max-w-2xl">
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-theme-text-muted">Secret API Key</label>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              readOnly
+              value={devSettings?.api_key || 'No API key generated yet'}
+              className="flex-1 bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none transition-colors theme-button font-mono text-sm opacity-80"
+            />
+            {devSettings?.api_key && (
+              <button 
+                onClick={() => copyToClipboard(devSettings.api_key)}
+                className="px-4 bg-theme-surface hover:bg-theme-surface-hover text-theme-text transition-colors border border-theme-border theme-button flex items-center gap-2"
+                title="Copy to clipboard"
+              >
+                <Copy size={18} />
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-theme-text-muted mt-1 font-medium text-red-500/80">
+            Store this key securely. It provides full access to your Flought tenant API.
+          </p>
+        </div>
+
+        <div className="pt-4 border-t border-theme-border flex gap-4">
+          <button 
+            onClick={handleGenerateKey}
+            disabled={generating}
+            className="px-6 py-3 bg-brand-accent text-white font-bold transition-opacity hover:bg-brand-accent-light theme-button disabled:opacity-50 flex items-center gap-2"
+          >
+            <RefreshCw size={18} className={generating ? "animate-spin" : ""} />
+            {devSettings?.api_key ? 'Regenerate API Key' : 'Generate Secret Key'}
+          </button>
+        </div>
+
+        {devSettings?.api_key && (
+          <div className="mt-8 p-6 border border-theme-border bg-theme-surface theme-button">
+            <h3 className="font-bold text-theme-text mb-4">Example Request</h3>
+            <pre className="bg-[#1A1A1A] text-[#E5E5E5] p-4 rounded-sm font-mono text-sm overflow-x-auto">
+{`curl -X POST https://api.flought.com/api/v1/messages/send \\
+  -H "Authorization: Bearer ${devSettings.api_key}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "conversationId": "uuid-here",
+    "text": "Hello from API!"
+  }'`}
+            </pre>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default Settings;
