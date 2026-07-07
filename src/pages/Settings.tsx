@@ -726,180 +726,7 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
   );
 };
 
-const DeveloperSettings = ({ tenantId, session }: { tenantId: string, session: any }) => {
-  const [webhookUrl, setWebhookUrl] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [rotating, setRotating] = useState(false);
 
-  const { data: devConfig, isLoading, refetch } = useQuery({
-    queryKey: ['tenant-developer', tenantId],
-    queryFn: async () => {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/tenant/developer`, {
-        headers: { 
-          'Authorization': `Bearer ${session.access_token}`,
-          'x-tenant-id': tenantId 
-        }
-      });
-      if (!res.ok) throw new Error('Failed to fetch developer config');
-      return res.json();
-    },
-  });
-
-  useEffect(() => {
-    if (devConfig?.webhook_url) {
-      setWebhookUrl(devConfig.webhook_url);
-    }
-  }, [devConfig]);
-
-  const handleSaveWebhook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/tenant/developer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'x-tenant-id': tenantId
-        },
-        body: JSON.stringify({ webhook_url: webhookUrl })
-      });
-      if (!res.ok) throw new Error('API Error');
-      alert('Webhook URL saved successfully!');
-      refetch();
-    } catch (err) {
-      alert('Failed to save Webhook URL.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleRotateKey = async () => {
-    if (!window.confirm('Are you sure you want to generate a new API key? Any existing integrations using the old key will break immediately.')) return;
-    setRotating(true);
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/tenant/developer/rotate-key`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'x-tenant-id': tenantId
-        }
-      });
-      if (!res.ok) throw new Error('API Error');
-      alert('API Key rotated successfully!');
-      refetch();
-    } catch (err) {
-      alert('Failed to rotate API Key.');
-    } finally {
-      setRotating(false);
-    }
-  };
-
-  if (isLoading) return <div className="text-theme-text-muted">Loading developer settings...</div>;
-
-  return (
-    <div className="space-y-8">
-      <div className="theme-card p-8">
-        <h2 className="text-xl font-display font-bold text-theme-text mb-2 flex items-center gap-2"><Code size={20} /> Developer API</h2>
-        <p className="text-theme-text-muted mb-6">Use these credentials to connect Flought HQ with Zapier, Make.com, or your own custom backend.</p>
-        
-        <div className="space-y-6 max-w-2xl">
-          <div>
-            <label className="block text-sm font-bold text-theme-text-muted mb-2">Secret API Key</label>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                readOnly
-                value={devConfig?.api_key || ''} 
-                className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 font-mono text-sm focus:outline-none theme-button"
-              />
-              <button 
-                onClick={() => { navigator.clipboard.writeText(devConfig?.api_key || ''); alert('Copied to clipboard'); }}
-                className="px-4 bg-theme-surface border border-theme-border hover:text-brand-accent transition-colors theme-button"
-                title="Copy API Key"
-              >
-                <Copy size={18} />
-              </button>
-            </div>
-            <p className="text-xs text-theme-text-muted mt-2 font-medium flex items-center justify-between">
-              Do not share this key. It grants full access to your account.
-              <button onClick={handleRotateKey} disabled={rotating} className="text-red-500 hover:underline flex items-center gap-1">
-                <RefreshCw size={12} className={rotating ? 'animate-spin' : ''} /> Roll Key
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="theme-card p-8">
-        <h2 className="text-xl font-display font-bold text-theme-text mb-2">Outbound Webhooks</h2>
-        <p className="text-theme-text-muted mb-6">We will send a POST request with a JSON payload to this URL whenever a new message is received.</p>
-        
-        <form onSubmit={handleSaveWebhook} className="space-y-6 max-w-2xl">
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-theme-text-muted">Webhook URL</label>
-            <input 
-              type="url" 
-              value={webhookUrl}
-              onChange={e => setWebhookUrl(e.target.value)}
-              placeholder="https://hooks.zapier.com/hooks/catch/..." 
-              className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-brand-accent transition-colors theme-button font-mono text-sm"
-            />
-          </div>
-          
-          <div className="pt-4 border-t border-theme-border">
-            <button 
-              type="submit" 
-              disabled={saving}
-              className="px-6 py-3 bg-theme-text text-theme-bg hover:opacity-80 font-bold transition-opacity theme-button disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Webhook'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div className="theme-card p-8 border-t-4 border-brand-accent">
-        <h2 className="text-xl font-display font-bold text-theme-text mb-2">API Documentation</h2>
-        <p className="text-theme-text-muted mb-6">Use these endpoints to programmatically control Flought HQ.</p>
-
-        <div className="space-y-8">
-          
-          <ApiEndpoint 
-            method="POST"
-            path="/api/v1/contacts"
-            description="Add or update a contact (e.g. from a Facebook Lead Ad)."
-            payload={JSON.stringify({ phone_number: "14155552671", name: "John Doe", tags: ["Lead"] }, null, 2)}
-          />
-
-          <ApiEndpoint 
-            method="POST"
-            path="/api/v1/messages/send"
-            description="Send a message to a contact."
-            payload={JSON.stringify({ conversationId: "uuid", text: "Hello from CRM!" }, null, 2)}
-          />
-
-          <ApiEndpoint 
-            method="POST"
-            path="/api/v1/conversations/:id/takeover"
-            description="Pause the AI Bot so a human agent can chat."
-            payload="{}"
-          />
-
-          <ApiEndpoint 
-            method="POST"
-            path="/api/v1/conversations/:id/resolve"
-            description="Re-activate the AI Bot when the human is done."
-            payload="{}"
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const ApiEndpoint = ({ method, path, description, payload }: { method: string, path: string, description: string, payload: string }) => {
   return (
@@ -1368,12 +1195,12 @@ const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => 
     queryKey: ['developer_settings', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('developer_settings')
+        .from('developer_settings' as any)
         .select('*')
         .eq('tenant_id', tenantId)
         .maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      return data as any;
     }
   });
 
@@ -1396,7 +1223,7 @@ const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => 
           tenant_id: tenantId,
           api_key: newKey,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'tenant_id' });
+        } as any, { onConflict: 'tenant_id' });
 
       if (error) throw error;
       alert('New API Key generated successfully!');

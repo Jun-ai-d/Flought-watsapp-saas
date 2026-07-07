@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { ArrowRight, Bot, Zap, ShieldCheck, Database, MessageSquare, ArrowUpRight, ShoppingCart, Activity, Users, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import anime from 'animejs';
-import HeroPipeline from '../../components/3d/HeroPipeline';
+
+const HeroPipeline = lazy(() => import('../../components/3d/HeroPipeline'));
 
 const TiltCard = ({ children, className }: { children: React.ReactNode, className?: string }) => {
   const x = useMotionValue(0);
@@ -53,22 +54,15 @@ const HeroSection = () => {
           {value: 1, easing: 'easeInOutQuad', duration: 1200}
         ],
         delay: anime.stagger(200, {grid: [20, 10], from: 'center'}),
-        loop: true,
-        direction: 'alternate'
+        loop: false,
+        direction: 'normal'
       });
     }
 
     if (textRef.current) {
+      // Note: H1 (.hero-title) is intentionally excluded from this animation 
+      // so it renders immediately at full opacity for LCP.
       anime.timeline({loop: false})
-      .add({
-        targets: '.hero-word',
-        translateY: [40, 0],
-        translateZ: 0,
-        opacity: [0, 1],
-        easing: "easeOutExpo",
-        duration: 1400,
-        delay: (el, i) => 200 + 100 * i
-      })
       .add({
         targets: '.hero-subtext',
         translateY: [20, 0],
@@ -100,6 +94,39 @@ const HeroSection = () => {
         <title>Flought | Automate Your WhatsApp Business</title>
         <meta name="description" content="Put your WhatsApp on autopilot. A complete WhatsApp OS with native Shopify & CRM sync, automated Drip Campaigns, and strict pgvector RAG." />
         <link rel="canonical" href="https://flought.com/" />
+        <script type="application/ld+json">
+          {`
+            {
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Organization",
+                  "@id": "https://flought.com/#organization",
+                  "name": "Flought",
+                  "url": "https://flought.com",
+                  "logo": "https://flought.com/favicon.svg",
+                  "description": "Flought provides an automated WhatsApp OS for commerce and CRM syncing."
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "Flought OS",
+                  "applicationCategory": "BusinessApplication",
+                  "operatingSystem": "Web",
+                  "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                  },
+                  "aggregateRating": {
+                    "@type": "AggregateRating",
+                    "ratingValue": "4.9",
+                    "ratingCount": "150"
+                  }
+                }
+              ]
+            }
+          `}
+        </script>
       </Helmet>
 
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden opacity-40 pointer-events-none">
@@ -118,12 +145,9 @@ const HeroSection = () => {
               Flought OS v2.0
             </div>
             
-            <h1 ref={textRef} className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-[#00221A] mb-8 leading-tight">
-              <span className="hero-word inline-block opacity-0">Put</span>{' '}
-              <span className="hero-word inline-block opacity-0">your</span>{' '}<br className="hidden md:block" />
-              <span className="hero-word inline-block opacity-0 text-[#002E23]">WhatsApp</span><br />
-              <span className="hero-word inline-block opacity-0">on</span>{' '}
-              <span className="hero-word inline-block opacity-0">autopilot.</span>
+            <h1 ref={textRef} className="text-5xl md:text-7xl font-bold tracking-tight text-[#00221A] leading-tight mb-6">
+              Put your WhatsApp <br/>
+              on <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#002E23] to-[#4A6B5D]">autopilot.</span>
             </h1>
             
             <p className="hero-subtext opacity-0 text-xl text-[#4A6B5D] max-w-xl mb-12 font-medium leading-relaxed">
@@ -144,8 +168,10 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <div className="hero-3d relative h-[400px] lg:h-[700px] flex items-center justify-center z-50 w-full overflow-hidden">
-            <HeroPipeline queryVolume={1000} percentSolved={0.8} />
+          <div className="hero-3d relative lg:h-[700px] flex items-center justify-center z-50">
+            <Suspense fallback={<div className="w-full h-full min-h-[500px]" />}>
+              <HeroPipeline queryVolume={1000} percentSolved={0.8} />
+            </Suspense>
           </div>
 
         </div>

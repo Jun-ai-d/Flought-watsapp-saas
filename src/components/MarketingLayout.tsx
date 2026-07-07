@@ -55,6 +55,8 @@ const MarketingLayout: React.FC = () => {
             <Link to="/pricing" className="hover:text-[#002E23] transition-colors">Pricing</Link>
             <Link to="/privacy" className="hover:text-[#002E23] transition-colors">Privacy</Link>
             <Link to="/terms" className="hover:text-[#002E23] transition-colors">Terms</Link>
+            <Link to="/refund" className="hover:text-[#002E23] transition-colors">Refund Policy</Link>
+            <Link to="/data-deletion" className="hover:text-[#002E23] transition-colors">Data Deletion</Link>
           </div>
         </div>
         <div className="mt-16 pt-8 border-t border-[#EAEAEA] text-sm">

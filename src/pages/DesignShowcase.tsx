@@ -1,8 +1,12 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 
 const DesignShowcase: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-12 pb-12">
+      <Helmet>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <div className="border-b border-theme-border pb-6">
         <h1 className="text-3xl font-display font-bold text-theme-text mb-2">Flought Design System</h1>
         <p className="text-theme-text-muted">Interactive Theme Showcase</p>

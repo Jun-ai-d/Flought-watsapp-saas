@@ -1,8 +1,9 @@
 import { Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Outlet } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './contexts/AuthContext';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 // Marketing Pages
 const MarketingLayout = lazy(() => import('./components/MarketingLayout'));
@@ -44,6 +45,12 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const AuthLayout = () => (
+  <AuthProvider>
+    <Outlet />
+  </AuthProvider>
+);
+
 function App() {
   return (
     <>
@@ -56,38 +63,40 @@ function App() {
           <Route path="/pricing" element={<Pricing />} />
         </Route>
         
-        {/* Public Routes (No Layout) */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        {/* Legal & Misc Routes (No Auth) */}
         <Route path="/showcase" element={<DesignShowcase />} />
-        
-        {/* Legal Routes */}
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/refund" element={<RefundPolicy />} />
         <Route path="/data-deletion" element={<DataDeletion />} />
 
-        {/* Protected Dashboard Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/faqs" element={<FAQManager />} />
-            <Route path="/knowledge" element={<KnowledgeBaseManager />} />
-            <Route path="/templates" element={<TemplateManager />} />
-            <Route path="/flows" element={<FlowBuilder />} />
-            <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
+        {/* Auth Required Routes */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminOverview />} />
-            <Route path="tenants" element={<AdminTenants />} />
-            <Route path="provision" element={<AdminProvisioning />} />
-            <Route path="billing" element={<AdminBilling />} />
-            <Route path="users" element={<AdminUsers />} />
+          {/* Protected Dashboard Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/inbox" element={<Inbox />} />
+              <Route path="/faqs" element={<FAQManager />} />
+              <Route path="/knowledge" element={<KnowledgeBaseManager />} />
+              <Route path="/templates" element={<TemplateManager />} />
+              <Route path="/flows" element={<FlowBuilder />} />
+              <Route path="/campaigns" element={<Campaigns />} />
+              <Route path="/contacts" element={<Contacts />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+            
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminOverview />} />
+              <Route path="tenants" element={<AdminTenants />} />
+              <Route path="provision" element={<AdminProvisioning />} />
+              <Route path="billing" element={<AdminBilling />} />
+              <Route path="users" element={<AdminUsers />} />
+            </Route>
           </Route>
         </Route>
       </Routes>

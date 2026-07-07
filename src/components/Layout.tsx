@@ -59,7 +59,7 @@ const Layout: React.FC = () => {
       <aside className="hidden md:flex flex-col w-64 bg-theme-surface border-r border-theme-border z-20 shrink-0">
         <div className="h-16 flex items-center px-6 border-b border-theme-border gap-3 shrink-0">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm p-1 border border-theme-border">
-            <img src="/logo.png" alt="Flought Logo" className="w-full h-full object-contain" />
+            <img src="/favicon.svg" alt="Flought Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl font-bold font-display tracking-tight text-theme-text truncate">
             {tenant?.business_name || 'Flought'}
