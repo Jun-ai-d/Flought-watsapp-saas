@@ -218,7 +218,6 @@ const Inbox: React.FC = () => {
           tenantId: tenant!.id,
           conversationId: selectedId,
           text,
-          providerName: 'gupshup',
           isInternal
         })
       });
@@ -303,8 +302,7 @@ const Inbox: React.FC = () => {
         body: JSON.stringify({
           tenantId: tenant!.id,
           conversationId: selectedId,
-          text: finalText,
-          providerName: 'gupshup'
+          text: finalText
         })
       });
       if (!res.ok) throw new Error('Failed to send template');

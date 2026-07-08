@@ -18,6 +18,7 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
         .from('tenant_bsp_config')
         .select('bsp_provider')
         .eq('tenant_id', tenantId)
+        .eq('is_active', true)
         .limit(1)
         .maybeSingle();
       providerName = config?.bsp_provider || 'meta';
