@@ -300,7 +300,7 @@ router.delete('/users/:userId', async (req: Request, res: Response) => {
   const { userId } = req.params;
 
   try {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId as string);
     if (error) throw error;
     res.json({ message: 'User access revoked' });
   } catch (error: any) {

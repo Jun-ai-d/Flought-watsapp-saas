@@ -12,6 +12,6 @@ export async function matchFAQ(tenantId: string, query: string): Promise<FAQMatc
   });
   if (error || !data || data.length === 0) return { matched: false };
   // Fire-and-forget analytics
-  void supabaseAdmin.rpc('increment_faq_match', { faq_id: data[0].id }).catch(console.error);
+  supabaseAdmin.rpc('increment_faq_match', { faq_id: data[0].id }).then(({error}) => { if(error) console.error(error); });
   return { matched: true, answer: data[0].answer, faqId: data[0].id };
 }

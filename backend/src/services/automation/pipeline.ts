@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { decryptToken } from '../../bsp/crypto';
 import { checkHumanIntent, triggerHandover } from './handover';
 import { matchFAQ } from './faqMatcher';
 import { executeFlow } from './flowMatcher';
