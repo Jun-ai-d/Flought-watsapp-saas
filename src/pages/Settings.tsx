@@ -525,6 +525,7 @@ const TeamList = ({ tenantId }: { tenantId: string }) => {
 };
 
 const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: any }) => {
+  const queryClient = useQueryClient();
   const [bspForm, setBspForm] = useState({ provider: DEFAULT_BSP_PROVIDER, waba_id: '', phone_id: '', api_key: '', catalog_id: '' });
   const [savingBsp, setSavingBsp] = useState(false);
 
@@ -583,6 +584,8 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
       }
       alert('WhatsApp Configuration saved successfully!');
       setBspForm(prev => ({ ...prev, api_key: '' })); // clear the key field
+      
+      queryClient.invalidateQueries({ queryKey: ['tenant-bsp'] });
     } catch (err: any) {
       alert(`Failed to save WhatsApp configuration.\n\nError: ${err.message}`);
     } finally {
