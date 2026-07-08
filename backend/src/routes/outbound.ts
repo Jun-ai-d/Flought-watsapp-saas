@@ -116,7 +116,7 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
         content: messageType === 'catalog' ? 'Sent Catalog' : text,
         sender: 'agent',
         wa_message_id: bspMessageId,
-        is_internal: isInternal
+        private: isInternal
       });
 
     if (msgInsertError) {
