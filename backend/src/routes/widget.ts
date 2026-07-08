@@ -26,11 +26,12 @@ router.post('/chat', widgetLimiter, async (req: any, res: any) => {
   }
 
   try {
-    // 1. Fetch tenant limits and trial status
+    // 1. Validate tenant exists and is active (prevents enumeration attacks)
     const { data: tenant, error: tenantErr } = await supabaseAdmin
       .from('tenants')
-      .select('plan_type, trial_expires_at, trial_conversations_used, trial_conversations_limit')
+      .select('plan_type, status, trial_expires_at, trial_conversations_used, trial_conversations_limit')
       .eq('id', tenantId)
+      .eq('status', 'active')  // Only allow active tenants
       .single();
 
     if (tenantErr || !tenant) {
@@ -99,10 +100,7 @@ router.post('/chat', widgetLimiter, async (req: any, res: any) => {
 
     // 4. Increment trial limit counter if it's a new session and they are on trial
     if (isNewSession && tenant.plan_type === 'trial') {
-      await supabaseAdmin
-        .from('tenants')
-        .update({ trial_conversations_used: tenant.trial_conversations_used + 1 })
-        .eq('id', tenantId);
+      await supabaseAdmin.rpc('increment_trial_usage', { p_tenant_id: tenantId });
     }
 
     // 5. Insert inbound message

@@ -19,7 +19,7 @@ router.post('/conversations/:id/takeover', async (req: ApiAuthRequest, res) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('conversations')
-      .update({ conv_status: 'handover_active' })
+      .update({ status: 'handover_active' })
       .eq('id', conversationId)
       .eq('tenant_id', tenantId)
       .select()
@@ -46,7 +46,7 @@ router.post('/conversations/:id/resolve', async (req: ApiAuthRequest, res) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('conversations')
-      .update({ conv_status: 'bot', handover_reason: null, handover_summary: null })
+      .update({ status: 'bot', handover_reason: null, handover_summary: null })
       .eq('id', conversationId)
       .eq('tenant_id', tenantId)
       .select()
@@ -69,7 +69,17 @@ router.post('/conversations/:id/resolve', async (req: ApiAuthRequest, res) => {
  */
 router.post('/messages/send', async (req: ApiAuthRequest, res) => {
   const tenantId = req.tenantId;
-  const { conversationId, text, providerName = 'gupshup' } = req.body;
+  let { conversationId, text, providerName } = req.body;
+
+  if (!providerName) {
+    const { data: config } = await supabaseAdmin
+      .from('tenant_bsp_config')
+      .select('bsp_provider')
+      .eq('tenant_id', tenantId)
+      .limit(1)
+      .maybeSingle();
+    providerName = config?.bsp_provider || 'meta';
+  }
 
   if (!tenantId || !conversationId || !text) {
     return res.status(400).json({ error: 'Missing required fields: conversationId, text' });

@@ -85,11 +85,11 @@ async function processEnrollment(enrollment: any) {
         .from('tenant_bsp_config')
         .select('*')
         .eq('tenant_id', tenantId)
-        .eq('bsp_provider', 'gupshup') // Hardcoded default for MVP, can be extended to multi-provider
-        .single();
+        .single(); // We don't hardcode provider anymore
 
       if (config) {
-        const provider = getBSPProvider('gupshup');
+        const activeProvider = config.bsp_provider || 'gupshup';
+        const provider = getBSPProvider(activeProvider);
         const decryptedConfig = { ...config };
         if (decryptedConfig.access_token_encrypted) {
           decryptedConfig.access_token_encrypted = decryptToken(decryptedConfig.access_token_encrypted);

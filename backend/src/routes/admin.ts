@@ -8,6 +8,8 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
+import { requireApiKey } from '../middleware/apiAuth';
+import { appCache } from '../lib/cache';
 import { encryptToken } from '../bsp/crypto';
 
 const router = Router();
@@ -73,6 +75,9 @@ router.get('/check', (req, res) => {
  */
 router.get('/metrics', async (req, res) => {
   try {
+    const cached = appCache.get('admin_metrics');
+    if (cached) return res.json(cached);
+
     const currentMonth = new Date();
     currentMonth.setDate(1);
     const billingPeriod = currentMonth.toISOString().split('T')[0];
@@ -88,7 +93,7 @@ router.get('/metrics', async (req, res) => {
     try {
       expensesRes = await supabaseAdmin.from('platform_expenses').select('id, name, amount_inr, created_at').order('created_at', { ascending: false });
     } catch (e) {
-      console.warn('platform_expenses table might not exist yet');
+      console.warn('platform_expenses query failed:', e instanceof Error ? e.message : e);
     }
 
     // Income
@@ -114,7 +119,7 @@ router.get('/metrics', async (req, res) => {
     const profitMargin = mrr > 0 ? (netProfit / mrr) * 100 : 0;
     const activeTenants = tenantsRes.count || 0;
 
-    res.json({ 
+    const result = { 
       mrr, 
       volume: totalMessages, 
       activeTenants,
@@ -127,7 +132,9 @@ router.get('/metrics', async (req, res) => {
         breakdown: { msgCost, llmCost, sttCost }
       },
       expensesList
-    });
+    };
+    appCache.set('admin_metrics', result, 60);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching admin metrics:', error);
     res.status(500).json({ error: 'Failed to fetch metrics' });
@@ -328,33 +335,20 @@ router.post('/tenants', async (req: AdminRequest, res: Response) => {
   }
 
   try {
-    // 1. Insert Tenant Record
-    const { data: tenant, error: tErr } = await supabaseAdmin
-      .from('tenants')
-      .insert({
-        business_name: business_name.trim(),
-        region: region || 'IN',
-        tier: tier || 'standard',
-        status: 'active'
-      })
-      .select()
-      .single();
-      
-    if (tErr) throw tErr;
+    const finalRegion = region || 'IN';
+    const finalTier = tier || 'standard';
+    const capMessages = finalTier === 'vip' ? 20000 : (finalTier === 'growth' ? 4000 : 1500);
+    const priceInr = finalTier === 'vip' ? 14999 : (finalTier === 'growth' ? 4999 : 1999);
 
-    // 2. Create Subscription Placeholder
-    // This allows the billing engine to know what to charge this tenant next month.
-    const { error: sErr } = await supabaseAdmin
-      .from('subscriptions')
-      .insert({
-        tenant_id: tenant.id,
-        plan: tier || 'standard',
-        cap_messages: tier === 'vip' ? 20000 : (tier === 'growth' ? 4000 : 1500),
-        price_inr: tier === 'vip' ? 14999 : (tier === 'growth' ? 4999 : 1999),
-        status: 'active'
-      });
+    const { data: tenant, error } = await supabaseAdmin.rpc('provision_tenant', {
+      p_business_name: business_name.trim(),
+      p_region: finalRegion,
+      p_tier: finalTier,
+      p_cap_messages: capMessages,
+      p_price_inr: priceInr
+    });
       
-    if (sErr) console.error('Subscription error:', sErr);
+    if (error) throw error;
 
     res.status(201).json(tenant);
   } catch (error) {
@@ -497,6 +491,10 @@ router.post('/tenants/:tenantId/bsp', async (req: Request, res: Response) => {
       .single();
       
     if (error) throw error;
+    
+    // Invalidate the cache to ensure real-time messaging picks up the new config instantly
+
+    appCache.delete(`bsp_config_${tenantId}`);
     
     res.json(data);
   } catch (error) {

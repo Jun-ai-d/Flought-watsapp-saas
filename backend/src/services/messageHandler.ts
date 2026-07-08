@@ -47,9 +47,20 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   let messageContent = msg.text || '';
   let transcript = '';
 
+  let accessToken: string | undefined;
+  if (msg.type === 'audio' && msg.mediaUrl && providerName === 'meta') {
+    const { data: bsp } = await supabaseAdmin.from('tenant_bsp_config')
+      .select('provider_config')
+      .eq('phone_number_id', msg.toPhoneNumberId)
+      .maybeSingle();
+    if (bsp && bsp.provider_config) {
+      accessToken = (bsp.provider_config as any).accessToken;
+    }
+  }
+
   if (msg.type === 'audio' && msg.mediaUrl) {
     console.log(`[STT] Transcribing voice note for ${msg.waMessageId}`);
-    transcript = await transcribeAudio(msg.mediaUrl);
+    transcript = await transcribeAudio(msg.mediaUrl, providerName, accessToken);
     messageContent = transcript;
   }
   
@@ -90,8 +101,9 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   const currentStatus = result.conv_status;
 
   if (msg.type === 'audio' && transcript) {
-    // Track STT usage (assume average 0.5 mins per voice note for MVP)
-    try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_stt_minutes: 0.5 }); } catch (e) { console.error(e); }
+    // Estimate duration: OGG voice notes are ~16kbps, so bytes / (16000/8) ≈ seconds
+    const estimatedMinutes = Math.max(0.1, 0.5); // Keep 0.5 as default until we can get actual duration
+    try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_stt_minutes: estimatedMinutes }); } catch (e) { console.error(e); }
   }
 
   console.log(`✅ Processed inbound message from ${msg.fromPhone}`);
@@ -99,12 +111,12 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   // Trigger outbound webhook for developer integrations (Zapier, custom backend)
   fireOutboundWebhook(tenantId, {
     event: 'message.received',
+    timestamp: msg.timestamp || new Date().toISOString(),
     data: {
       from: msg.fromPhone,
       name: msg.customerName || 'Customer',
       content: messageContent,
       type: msg.type,
-      timestamp: msg.timestamp || new Date().toISOString(),
       conversation_id: conversationId
     }
   });

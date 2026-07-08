@@ -29,6 +29,26 @@ export interface TemplateStatus {
   category: 'marketing' | 'utility' | 'authentication';
 }
 
+export interface ProviderConfig {
+  access_token_encrypted?: string;
+  access_token?: string;
+  waba_id?: string;
+  phone_number_id?: string;
+  verify_token?: string;
+  app_id?: string;
+  app_secret?: string;
+  bsp_provider?: string;
+  webhook_url?: string;
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+export interface TemplateButton {
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER';
+  text: string;
+  url?: string;
+  phoneNumber?: string;
+}
+
 export interface BSPProvider {
   /**
    * Send a free-form session message (only valid within the 24hr customer service window)
@@ -37,7 +57,7 @@ export interface BSPProvider {
     tenantId: string;
     to: string;
     content: SessionMessageContent;
-    providerConfig: Record<string, any>; // Decrypted config (e.g. access_token)
+    providerConfig: ProviderConfig; // Decrypted config (e.g. access_token)
   }): Promise<SendResult>;
 
   /**
@@ -51,8 +71,8 @@ export interface BSPProvider {
     headerType?: 'text' | 'image' | 'video' | 'document';
     headerContent?: string;
     footer?: string;
-    buttons?: any[];
-    providerConfig: Record<string, any>;
+    buttons?: TemplateButton[];
+    providerConfig: ProviderConfig;
   }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }>;
 
   /**
@@ -64,7 +84,7 @@ export interface BSPProvider {
     templateId: string;
     category: 'marketing' | 'utility' | 'authentication';
     templateParams: string[];
-    providerConfig: Record<string, any>;
+    providerConfig: ProviderConfig;
   }): Promise<SendResult>;
 
   /**
@@ -72,7 +92,7 @@ export interface BSPProvider {
    * Note: This only returns actual inbound customer messages. Status updates (delivered/read) 
    * should be handled separately by the provider or in a different function, but for now we focus on inbound.
    */
-  parseInboundWebhook(rawPayload: any): NormalizedInboundMessage[];
+  parseInboundWebhook(rawPayload: Record<string, unknown> | unknown): NormalizedInboundMessage[];
 
   /**
    * Verify a webhook is authentically from this BSP (signature/token check)
@@ -82,10 +102,10 @@ export interface BSPProvider {
   /**
    * Fetch current template list + statuses
    */
-  listTemplates(providerConfig: Record<string, any>): Promise<TemplateStatus[]>;
+  listTemplates(providerConfig: ProviderConfig): Promise<TemplateStatus[]>;
 
   /**
    * Fetch current messaging tier / quality rating
    */
-  getAccountHealth(providerConfig: Record<string, any>): Promise<{ tier: number; qualityRating: 'green' | 'yellow' | 'red' }>;
+  getAccountHealth(providerConfig: ProviderConfig): Promise<{ tier: number; qualityRating: 'green' | 'yellow' | 'red' }>;
 }

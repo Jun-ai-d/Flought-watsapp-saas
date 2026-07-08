@@ -118,12 +118,12 @@ export async function triggerHandover(tenantId: string, conversationId: string, 
     // Alert external CRM via webhook
     fireOutboundWebhook(tenantId, {
       event: 'handover.requested',
+      timestamp: new Date().toISOString(),
       data: {
         conversation_id: conversationId,
         reason: reason,
         department: department,
-        summary: summary,
-        timestamp: new Date().toISOString()
+        summary: summary
       }
     });
   }

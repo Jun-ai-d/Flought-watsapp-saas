@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { handleInboundWebhook } from '../services/messageHandler';
 import { getBSPProvider } from '../bsp/providerFactory';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -12,11 +13,11 @@ router.post('/gupshup', async (req, res) => {
     
     const provider = getBSPProvider('gupshup');
     const verifyToken = process.env.GUPSHUP_VERIFY_TOKEN;
-    if (process.env.NODE_ENV === 'production' && !verifyToken) {
-      throw new Error('FATAL: GUPSHUP_VERIFY_TOKEN must be set in production');
+    if (!verifyToken) {
+      throw new Error('FATAL: GUPSHUP_VERIFY_TOKEN must be set');
     }
     
-    if (!provider.verifyWebhookAuth(headers, verifyToken || 'default-token')) {
+    if (!provider.verifyWebhookAuth(headers, verifyToken)) {
       return res.status(401).send('Unauthorized');
     }
     
@@ -40,11 +41,10 @@ router.post('/meta', async (req, res) => {
     const appSecret = process.env.META_APP_SECRET;
     
     if (!appSecret) {
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(500).json({ error: 'Server misconfigured: META_APP_SECRET not set' });
-      } else {
-        console.warn('WARNING: META_APP_SECRET not set, skipping signature verification in dev');
+      if (process.env.SKIP_WEBHOOK_VERIFY !== 'true') {
+        return res.status(500).json({ error: 'META_APP_SECRET is required. Set SKIP_WEBHOOK_VERIFY=true to bypass in dev.' });
       }
+      console.warn('WARNING: META_APP_SECRET not set, skipping signature verification (SKIP_WEBHOOK_VERIFY=true)');
     }
 
     // Verify HMAC signature (only when META_APP_SECRET is configured)
@@ -55,7 +55,7 @@ router.post('/meta', async (req, res) => {
       if (!rawBody) {
         return res.status(400).send('Missing raw body for signature verification');
       }
-      const crypto = require('crypto');
+
       const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
       
       const sigBuffer = Buffer.from(signature);
@@ -86,7 +86,11 @@ router.get('/meta', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  const verifyToken = process.env.META_VERIFY_TOKEN || 'flought-meta-test';
+  const verifyToken = process.env.META_VERIFY_TOKEN;
+  
+  if (!verifyToken) {
+    return res.status(500).send('Server misconfigured: META_VERIFY_TOKEN not set');
+  }
   
   if (mode === 'subscribe' && token === verifyToken) {
     console.log('WEBHOOK_VERIFIED', { trace_id: req.traceId });

@@ -180,15 +180,7 @@ const Settings: React.FC = () => {
               >
                 Shopify Integration
               </button>
-              <button 
-                className={cn(
-                  "px-4 py-3 text-left font-medium transition-all theme-button border border-transparent",
-                  activeTab === 'crm' ? "bg-theme-text text-theme-bg" : "text-theme-text-muted hover:bg-theme-surface-hover hover:text-theme-text"
-                )}
-                onClick={() => setActiveTab('crm')}
-              >
-                CRM Sync
-              </button>
+
               <button 
                 className={cn(
                   "px-4 py-3 text-left font-medium transition-all theme-button border border-transparent",
@@ -409,9 +401,7 @@ const Settings: React.FC = () => {
             <ShopifySettings tenantId={tenant.id} session={session} />
           )}
 
-          {activeTab === 'crm' && tenant?.role === 'admin' && (
-            <CRMSettings tenantId={tenant.id} session={session} />
-          )}
+
 
           {activeTab === 'quick_replies' && (
             <QuickRepliesSettings tenantId={tenant.id} />
@@ -1188,19 +1178,22 @@ const CRMSettings = ({ tenantId, session }: { tenantId: string, session: any }) 
   );
 };
 
-const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => {
+const DeveloperSettings = ({ tenantId, session }: { tenantId: string, session: any }) => {
   const [generating, setGenerating] = useState(false);
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null);
   
   const { data: devSettings, isLoading, refetch } = useQuery({
     queryKey: ['developer_settings', tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('developer_settings' as any)
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data as any;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/tenant/developer`, {
+        headers: { 
+          'Authorization': `Bearer ${session.access_token}`,
+          'x-tenant-id': tenantId 
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch developer config');
+      return res.json();
     }
   });
 
@@ -1210,23 +1203,22 @@ const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => 
     }
     
     setGenerating(true);
-    // Secure random hex for the API key
-    const array = new Uint8Array(16);
-    window.crypto.getRandomValues(array);
-    const hex = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-    const newKey = `sk_live_${hex}`;
+    setNewlyGeneratedKey(null);
 
     try {
-      const { error } = await supabase
-        .from('developer_settings')
-        .upsert({
-          tenant_id: tenantId,
-          api_key: newKey,
-          updated_at: new Date().toISOString()
-        } as any, { onConflict: 'tenant_id' });
-
-      if (error) throw error;
-      alert('New API Key generated successfully!');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/tenant/developer/rotate-key`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'x-tenant-id': tenantId
+        }
+      });
+      
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      setNewlyGeneratedKey(data.api_key);
+      alert('New API Key generated successfully! Please copy it now, you will not be able to see it again.');
       refetch();
     } catch (err: any) {
       alert('Failed to generate key: ' + err.message);
@@ -1241,6 +1233,9 @@ const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => 
   };
 
   if (isLoading) return <div className="text-theme-text-muted">Loading Developer settings...</div>;
+
+  const displayKey = newlyGeneratedKey || (devSettings?.has_key ? 'sk_live_... (Hidden for security)' : 'No API key generated yet');
+  const hasKey = newlyGeneratedKey || devSettings?.has_key;
 
   return (
     <div className="theme-card p-8 border-t-4 border-brand-accent">
@@ -1258,12 +1253,12 @@ const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => 
             <input 
               type="text" 
               readOnly
-              value={devSettings?.api_key || 'No API key generated yet'}
+              value={displayKey}
               className="flex-1 bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none transition-colors theme-button font-mono text-sm opacity-80"
             />
-            {devSettings?.api_key && (
+            {newlyGeneratedKey && (
               <button 
-                onClick={() => copyToClipboard(devSettings.api_key)}
+                onClick={() => copyToClipboard(newlyGeneratedKey)}
                 className="px-4 bg-theme-surface hover:bg-theme-surface-hover text-theme-text transition-colors border border-theme-border theme-button flex items-center gap-2"
                 title="Copy to clipboard"
               >
@@ -1283,16 +1278,16 @@ const DeveloperSettings = ({ tenantId }: { tenantId: string, session: any }) => 
             className="px-6 py-3 bg-brand-accent text-white font-bold transition-opacity hover:bg-brand-accent-light theme-button disabled:opacity-50 flex items-center gap-2"
           >
             <RefreshCw size={18} className={generating ? "animate-spin" : ""} />
-            {devSettings?.api_key ? 'Regenerate API Key' : 'Generate Secret Key'}
+            {devSettings?.has_key ? 'Regenerate API Key' : 'Generate Secret Key'}
           </button>
         </div>
 
-        {devSettings?.api_key && (
+        {hasKey && (
           <div className="mt-8 p-6 border border-theme-border bg-theme-surface theme-button">
             <h3 className="font-bold text-theme-text mb-4">Example Request</h3>
             <pre className="bg-[#1A1A1A] text-[#E5E5E5] p-4 rounded-sm font-mono text-sm overflow-x-auto">
 {`curl -X POST https://api.flought.com/api/v1/messages/send \\
-  -H "Authorization: Bearer ${devSettings.api_key}" \\
+  -H "Authorization: Bearer \${newlyGeneratedKey || 'YOUR_API_KEY'}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "conversationId": "uuid-here",

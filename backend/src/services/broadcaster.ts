@@ -52,16 +52,40 @@ export const initBroadcasterWorkers = async () => {
           providerConfig
         });
 
+        let conversationId = null;
+        const { data: existingConv } = await supabaseAdmin
+          .from('conversations')
+          .select('id')
+          .eq('tenant_id', data.tenantId)
+          .eq('customer_phone', data.contactPhone)
+          .maybeSingle();
+
+        if (existingConv) {
+          conversationId = existingConv.id;
+        } else {
+          const { data: newConv } = await supabaseAdmin
+            .from('conversations')
+            .insert({
+              tenant_id: data.tenantId,
+              customer_phone: data.contactPhone,
+              customer_name: 'Unknown',
+              status: 'bot'
+            })
+            .select('id')
+            .single();
+          if (newConv) conversationId = newConv.id;
+        }
+
         await supabaseAdmin.from('messages').insert({
           tenant_id: data.tenantId,
-          conversation_id: null,
+          conversation_id: conversationId,
           wa_message_id: result.bspMessageId,
           direction: 'outbound',
-          type: 'template',
-          sender_type: 'bot',
+          message_type: 'template',
+          sender: 'bot',
           status: result.status,
-          content: { text: `Template broadcast: ${data.templateName}` }
-        } as any);
+          content: `Template broadcast: ${data.templateName}`
+        });
 
         console.log('Successfully processed broadcast job', { jobId, phone: data.contactPhone, trace_id: data.traceId });
       } catch (error) {

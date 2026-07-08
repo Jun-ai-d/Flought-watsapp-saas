@@ -12,7 +12,6 @@ import tenantRoutes from './routes/tenant';
 import topicsRoutes from './routes/topics';
 import v1Routes from './routes/v1';
 import integrationsRouter from './routes/integrations';
-import crmRouter from './routes/crm';
 import widgetRouter from './routes/widget';
 
 import rateLimit from 'express-rate-limit';
@@ -31,9 +30,16 @@ const allowedOrigins = [
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : [])
 ];
 
+// Rate Limiting for webhooks (100 reqs / 1 min)
+const webhookLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests to webhook endpoint, please try again later.'
+});
+
 // Webhooks do not need CORS and can be triggered by external servers (Meta) with foreign Origin headers.
 // We apply express.json() locally to this route so it can parse the body BEFORE CORS rejects it.
-app.use('/webhooks', express.json({
+app.use('/webhooks', webhookLimiter, express.json({
   verify: (req: any, res, buf) => {
     req.rawBody = buf;
   }
@@ -57,12 +63,7 @@ app.use(express.json({
 }));
 app.use(traceMiddleware);
 
-// Rate Limiting for webhooks (100 reqs / 1 min)
-const webhookLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests to webhook endpoint, please try again later.'
-});
+
 
 // Rate Limiting for standard API routes (300 reqs / 1 min)
 const apiLimiter = rateLimit({
@@ -85,7 +86,6 @@ app.use('/api/tenant', tenantRoutes);
 app.use('/api/topics', topicsRoutes);
 app.use('/api/v1', v1Routes);
 app.use('/api/integrations', integrationsRouter);
-app.use('/api/crm', crmRouter);
 app.use('/api/widget', widgetRouter);
 
 // Health check
@@ -105,7 +105,6 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 import { initJobQueue } from './services/jobQueue';
 import { initBroadcasterWorkers } from './services/broadcaster';
-import { initCrmWorkers } from './services/crmWorker';
 import { initCampaignWorker } from './services/campaignWorker';
 
 app.listen(PORT, async () => {
@@ -114,7 +113,6 @@ app.listen(PORT, async () => {
   try {
     await initJobQueue();
     await initBroadcasterWorkers();
-    await initCrmWorkers();
     await initCampaignWorker();
   } catch (error) {
     console.error('Failed to initialize background job workers', { error });

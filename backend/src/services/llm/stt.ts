@@ -7,11 +7,15 @@ const sttClient = new OpenAI({
   apiKey: process.env.OPENAI_STT_KEY || process.env.OPENAI_API_KEY
 });
 
-export async function transcribeAudio(mediaUrl: string): Promise<string> {
+export async function transcribeAudio(mediaUrl: string, providerName?: string, accessToken?: string): Promise<string> {
   try {
-    const response = await fetch(mediaUrl, {
-      headers: { 'apikey': process.env.GUPSHUP_API_KEY || '' }
-    });
+    const headers: Record<string, string> = {};
+    if (providerName === 'meta' && accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    } else {
+      headers['apikey'] = process.env.GUPSHUP_API_KEY || '';
+    }
+    const response = await fetch(mediaUrl, { headers });
     if (!response.ok) throw new Error(`Failed to fetch media: ${response.statusText}`);
     
     const arrayBuffer = await response.arrayBuffer();

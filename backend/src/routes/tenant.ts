@@ -122,6 +122,10 @@ router.post('/bsp', async (req: Request, res: Response) => {
       
     if (error) throw error;
     
+    // Invalidate the cache to ensure real-time messaging picks up the new config instantly
+    const { appCache } = require('../lib/cache');
+    appCache.delete(`bsp_config_${tenantId}`);
+    
     res.json(data);
   } catch (error: any) {
     console.error('Error saving BSP config:', error);
@@ -148,20 +152,16 @@ router.get('/developer', async (req: Request, res: Response) => {
       throw error;
     }
     
-    // If none exists, create one automatically
+    // If none exists, return null so frontend can show "Generate" button
     if (!data) {
-      const newKey = 'sk_live_' + crypto.randomBytes(24).toString('hex');
-      const { data: newData, error: insertError } = await supabaseAdmin
-        .from('developer_settings')
-        .insert({ tenant_id: tenantId, api_key: newKey })
-        .select('api_key, webhook_url')
-        .single();
-        
-      if (insertError) throw insertError;
-      data = newData;
+      return res.json(null);
     }
     
-    res.json(data);
+    // Do not return the hashed key to the frontend
+    res.json({
+      has_key: true,
+      webhook_url: data.webhook_url
+    });
   } catch (error) {
     console.error('Error fetching developer settings:', error);
     res.status(500).json({ error: 'Failed to fetch developer settings' });
@@ -199,16 +199,30 @@ router.post('/developer/rotate-key', async (req: Request, res: Response) => {
   const tenantId = req.headers['x-tenant-id'] as string;
   
   try {
-    const newKey = 'sk_live_' + crypto.randomBytes(24).toString('hex');
+    const rawKey = 'sk_live_' + crypto.randomBytes(24).toString('hex');
+    const hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
+
+    const rawWebhookSecret = 'whsec_' + crypto.randomBytes(24).toString('hex');
+    const encryptedWebhookSecret = encryptToken(rawWebhookSecret);
+
     const { data, error } = await supabaseAdmin
       .from('developer_settings')
-      .update({ api_key: newKey })
-      .eq('tenant_id', tenantId)
-      .select('api_key, webhook_url')
+      .upsert({ 
+        tenant_id: tenantId, 
+        api_key: hashedKey,
+        webhook_secret_encrypted: encryptedWebhookSecret
+      }, { onConflict: 'tenant_id' })
+      .select('webhook_url')
       .single();
       
     if (error) throw error;
-    res.json(data);
+    
+    // Return the raw key and raw webhook secret ONCE so the frontend can display them
+    res.json({
+      api_key: rawKey,
+      webhook_secret: rawWebhookSecret,
+      webhook_url: data.webhook_url
+    });
   } catch (error) {
     console.error('Error rotating API key:', error);
     res.status(500).json({ error: 'Failed to rotate API key' });
@@ -238,27 +252,32 @@ router.get('/integrations/shopify', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * POST /api/tenant/integrations/shopify
- */
 router.post('/integrations/shopify', async (req: Request, res: Response) => {
   const tenantId = req.headers['x-tenant-id'] as string;
   const { store_url, webhook_secret, is_active } = req.body;
   
   try {
+    const encryptedSecret = webhook_secret ? encryptToken(webhook_secret) : null;
+    
+    const updateData: any = {
+      tenant_id: tenantId,
+      store_url,
+      is_active
+    };
+    
+    if (encryptedSecret) {
+      updateData.webhook_secret = encryptedSecret;
+    }
+    
     const { data, error } = await supabaseAdmin
       .from('shopify_settings')
-      .upsert({
-        tenant_id: tenantId,
-        store_url,
-        webhook_secret,
-        is_active
-      }, { onConflict: 'tenant_id' })
-      .select('store_url, webhook_secret, is_active')
+      .upsert(updateData, { onConflict: 'tenant_id' })
+      .select('store_url, is_active')
       .single();
       
     if (error) throw error;
-    res.json(data);
+    // Do not send back the secret
+    res.json({ ...data, has_secret: !!encryptedSecret });
   } catch (error) {
     console.error('Error saving Shopify settings:', error);
     res.status(500).json({ error: 'Failed to save Shopify settings' });

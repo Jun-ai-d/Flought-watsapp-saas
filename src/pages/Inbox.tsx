@@ -208,7 +208,7 @@ const Inbox: React.FC = () => {
   const sendReplyMutation = useMutation({
     mutationFn: async ({ text, isInternal }: { text: string, isInternal: boolean }) => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/send`, {
+      const res = await fetch(`${apiUrl}/api/outbound/send`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -294,7 +294,7 @@ const Inbox: React.FC = () => {
         finalText = finalText.replace(`{{${i+1}}}`, param);
       });
       
-      const res = await fetch(`${apiUrl}/api/send`, {
+      const res = await fetch(`${apiUrl}/api/outbound/send`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -327,7 +327,7 @@ const Inbox: React.FC = () => {
     setSendingCatalog(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/v1/messages/send`, {
+      const res = await fetch(`${apiUrl}/api/outbound/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

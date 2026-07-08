@@ -77,11 +77,11 @@ const Dashboard: React.FC = () => {
 
   const displayMetrics = metrics || defaultMetrics;
   
-  // Provide fallback mock data for response times if backend doesn't supply it yet
+  // Actual response times from backend (or 0 if not available yet)
   const chartData = (displayMetrics.timeSeries || []).map(d => ({
     ...d,
-    agentResponseTime: d.agentResponseTime ?? Math.floor(Math.random() * (120 - 30) + 30), // 30s to 2m
-    aiResponseTime: d.aiResponseTime ?? Math.floor(Math.random() * (5 - 1) + 1) // 1s to 5s
+    agentResponseTime: d.agentResponseTime ?? 0,
+    aiResponseTime: d.aiResponseTime ?? 0
   }));
 
   const aiHandledRate = displayMetrics.totalMessages > 0 

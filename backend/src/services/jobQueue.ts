@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 
 // Ensure env is loaded since jobQueue might be initialized early
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const dbUrl = process.env.DATABASE_URL;
 

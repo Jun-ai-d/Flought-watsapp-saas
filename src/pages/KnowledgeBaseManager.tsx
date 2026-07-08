@@ -60,20 +60,7 @@ const KnowledgeBaseManager: React.FC = () => {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['kb-docs', tenant?.id], (old: any[] = []) => [data, ...old]);
-      
-      // Simulate backend processing delay for UX demonstration
-      setTimeout(async () => {
-        const { error: upErr } = await (supabase
-          .from('knowledge_documents') as any)
-          .update({ status: 'ready' })
-          .eq('id', data.id);
-          
-        if (!upErr) {
-          queryClient.setQueryData(['kb-docs', tenant?.id], (old: any[] = []) => 
-            old.map(d => d.id === data.id ? { ...d, status: 'ready' } : d)
-          );
-        }
-      }, 3000);
+      // Note: Backend worker will update status to 'ready' once vectorization is complete.
     }
   });
 

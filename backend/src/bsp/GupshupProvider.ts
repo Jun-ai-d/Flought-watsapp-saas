@@ -1,4 +1,4 @@
-import { BSPProvider, NormalizedInboundMessage, SendResult, SessionMessageContent, TemplateStatus } from './BSPProvider';
+import { BSPProvider, NormalizedInboundMessage, SendResult, SessionMessageContent, TemplateStatus, ProviderConfig, TemplateButton } from './BSPProvider';
 import crypto from 'crypto';
 
 export class GupshupProvider implements BSPProvider {
@@ -7,20 +7,16 @@ export class GupshupProvider implements BSPProvider {
     tenantId: string;
     to: string;
     content: SessionMessageContent;
-    providerConfig: Record<string, any>;
+    providerConfig: ProviderConfig;
   }): Promise<SendResult> {
     const { tenantId, to, content, providerConfig } = params;
     
     console.log(`[Gupshup] Sending session message to ${to}`);
-    const apiKey = providerConfig.gupshup_api_key || process.env.GUPSHUP_API_KEY;
-    const appId = providerConfig.gupshup_app_id || process.env.GUPSHUP_APP_ID;
+    const apiKey = providerConfig.gupshup_api_key as string | undefined || process.env.GUPSHUP_API_KEY;
+    const appId = providerConfig.gupshup_app_id as string | undefined || process.env.GUPSHUP_APP_ID;
 
     if (!apiKey || !appId) {
-      console.warn(`[Gupshup] Missing API credentials for tenant ${tenantId}. Faking success for local dev.`);
-      return {
-        bspMessageId: `gs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-        status: 'submitted'
-      };
+      throw new Error(`[Gupshup] Missing API credentials for tenant ${tenantId}. Message sending failed.`);
     }
 
     const response = await fetch(`https://api.gupshup.io/wa/api/v1/msg`, {
@@ -44,7 +40,7 @@ export class GupshupProvider implements BSPProvider {
       throw new Error(`Gupshup API Error: ${response.status} ${errorText}`);
     }
 
-    const responseData = await response.json() as any;
+    const responseData = await response.json() as { messageId?: string };
 
     return {
       bspMessageId: responseData?.messageId || `gs-${Date.now()}`,
@@ -60,13 +56,12 @@ export class GupshupProvider implements BSPProvider {
     headerType?: 'text' | 'image' | 'video' | 'document';
     headerContent?: string;
     footer?: string;
-    buttons?: any[];
-    providerConfig: Record<string, any>;
+    buttons?: TemplateButton[];
+    providerConfig: ProviderConfig;
   }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
-    console.log(`[Gupshup] Simulating template submission: ${params.name} with rich media.`);
     return {
-      bspTemplateId: `gs-tpl-${Date.now()}`,
-      status: 'approved' 
+      bspTemplateId: '',
+      status: 'rejected' as const
     };
   }
 
@@ -76,27 +71,30 @@ export class GupshupProvider implements BSPProvider {
     templateId: string;
     category: 'marketing' | 'utility' | 'authentication';
     templateParams: string[];
-    providerConfig: Record<string, any>;
+    providerConfig: ProviderConfig;
   }): Promise<SendResult> {
-    console.warn(`[Gupshup] sendTemplateMessage is NOT YET IMPLEMENTED. Returning fake success for tenant ${params.tenantId}.`);
-    
+    console.error('[Gupshup] sendTemplateMessage is not implemented. Returning failure.');
     return {
-      bspMessageId: `gs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      status: 'submitted'
+      bspMessageId: `gs-unsupported-${Date.now()}`,
+      status: 'failed',
+      error: 'Template messaging is not supported for Gupshup provider'
     };
   }
 
-  parseInboundWebhook(rawPayload: any): NormalizedInboundMessage[] {
+  parseInboundWebhook(rawPayload: Record<string, unknown> | unknown): NormalizedInboundMessage[] {
     const messages: NormalizedInboundMessage[] = [];
+    
+    // Type assertion for nested traversal
+    const payload = rawPayload as Record<string, any>;
     
     // Gupshup webhook format usually wraps events in an array or a specific top-level object.
     // Example: { app: 'appName', timestamp: 1234, type: 'message', payload: { ... } }
     
     // Let's assume a simplified structure for the webhook payload
-    if (rawPayload && rawPayload.type === 'message') {
-      const p = rawPayload.payload;
+    if (payload && payload.type === 'message') {
+      const p = payload.payload;
       
-      let msgType: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive' = 'text';
+      let msgType: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive' | 'order' = 'text';
       if (p.type === 'image' || p.type === 'audio' || p.type === 'document' || p.type === 'video') {
         msgType = p.type;
       }
@@ -104,11 +102,11 @@ export class GupshupProvider implements BSPProvider {
       messages.push({
         waMessageId: p.id || `wa-${Date.now()}`,
         fromPhone: p.source || p.sender?.phone,
-        toPhoneNumberId: p.destination || rawPayload.app,
+        toPhoneNumberId: p.destination || payload.app,
         type: msgType,
         text: p.payload?.text,
         mediaUrl: p.payload?.url,
-        timestamp: new Date(rawPayload.timestamp || Date.now()).toISOString(),
+        timestamp: new Date(payload.timestamp || Date.now()).toISOString(),
         customerName: p.sender?.name || 'Customer'
       });
     }
@@ -124,13 +122,13 @@ export class GupshupProvider implements BSPProvider {
     return token === verifyToken;
   }
 
-  async listTemplates(providerConfig: Record<string, any>): Promise<TemplateStatus[]> {
+  async listTemplates(providerConfig: ProviderConfig): Promise<TemplateStatus[]> {
     return [
       { id: '1', name: 'welcome_template', status: 'approved', category: 'utility' }
     ];
   }
 
-  async getAccountHealth(providerConfig: Record<string, any>): Promise<{ tier: number; qualityRating: 'green' | 'yellow' | 'red' }> {
+  async getAccountHealth(providerConfig: ProviderConfig): Promise<{ tier: number; qualityRating: 'green' | 'yellow' | 'red' }> {
     return { tier: 1, qualityRating: 'green' };
   }
 }

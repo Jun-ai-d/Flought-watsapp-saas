@@ -31,6 +31,8 @@ router.post('/shopify/webhook', async (req: any, res: any) => {
       return res.status(401).send('Integration not active or secret missing');
     }
 
+    const decryptedSecret = decryptToken(settings.webhook_secret);
+
     // 2. Validate HMAC
     const rawBody = req.rawBody; // Captured by express.json verify function
     if (!rawBody) {
@@ -39,7 +41,7 @@ router.post('/shopify/webhook', async (req: any, res: any) => {
     }
 
     const genHash = crypto
-      .createHmac('sha256', settings.webhook_secret)
+      .createHmac('sha256', decryptedSecret)
       .update(rawBody)
       .digest('base64');
 
@@ -136,18 +138,15 @@ async function processShopifyEvent(tenantId: string, topic: string, payload: any
       return;
     }
 
-    // 3. Ensure a conversation exists for logging
-    const { data: convData } = await supabaseAdmin.rpc('process_inbound_message', {
-      p_phone_number_id: config.phone_number_id,
-      p_customer_phone: cleanPhone,
-      p_customer_name: customerName,
-      p_message_type: 'text',
-      p_content: `[System] Autocreated for Shopify Event`,
-      p_media_url: null,
-      p_transcript: null,
-      p_wa_message_id: `sys-shopify-${Date.now()}`,
-      p_timestamp: new Date().toISOString()
-    });
+    // 3. Find an existing conversation if one exists, otherwise leave it null
+    const { data: existingConv } = await supabaseAdmin
+      .from('conversations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('customer_phone', cleanPhone)
+      .single();
+      
+    const conversationId = existingConv ? existingConv.id : null;
 
     // 4. Send Message via Provider
     const provider = getBSPProvider(config.bsp_provider);
@@ -161,17 +160,15 @@ async function processShopifyEvent(tenantId: string, topic: string, payload: any
     });
 
     // 5. Log outbound message
-    if (convData && convData.conversation_id) {
-      await supabaseAdmin.from('messages').insert({
-        conversation_id: convData.conversation_id,
-        tenant_id: tenantId,
-        direction: 'outbound',
-        message_type: 'template',
-        content: `[Shopify Automated Template: ${templateIdToSend}]`,
-        sender: 'agent',
-        wa_message_id: sendResult.bspMessageId
-      });
-    }
+    await supabaseAdmin.from('messages').insert({
+      conversation_id: conversationId,
+      tenant_id: tenantId,
+      direction: 'outbound',
+      message_type: 'template',
+      content: `[Shopify Automated Template: ${templateIdToSend}]`,
+      sender: 'agent',
+      wa_message_id: sendResult.bspMessageId
+    });
 
     console.log(`[Shopify] Successfully triggered ${templateIdToSend} to ${cleanPhone}`);
     

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireTenantMember } from '../middleware/requireTenantMember';
 import OpenAI from 'openai';
-import { boss } from '../services/jobQueue';
+
 
 const router = Router();
 const openai = new OpenAI();
@@ -66,8 +66,9 @@ Respond ONLY with the topic phrase.`;
       throw insertError;
     }
 
-    // 4. Trigger CRM Sync asynchronously
-    await boss.send('sync-crm', { tenantId, conversationId });
+    // CRM sync worker not yet implemented — removed dead enqueue to prevent
+    // unbounded job accumulation in pg-boss queue.
+    // TODO: Implement sync-crm worker when CRM integration is built.
 
     res.json({ success: true, topic });
   } catch (error) {

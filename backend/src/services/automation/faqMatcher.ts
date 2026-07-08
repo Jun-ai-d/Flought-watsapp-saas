@@ -7,34 +7,11 @@ export interface FAQMatchResult {
 }
 
 export async function matchFAQ(tenantId: string, query: string): Promise<FAQMatchResult> {
-  const { data: faqs, error } = await supabaseAdmin
-    .from('faqs')
-    .select('*')
-    .eq('tenant_id', tenantId);
-
-  if (error || !faqs || faqs.length === 0) {
-    return { matched: false };
-  }
-
-  const normalizedQuery = query.toLowerCase();
-
-  for (const faq of faqs) {
-    const keywords: string[] = faq.keywords || [];
-    const isMatch = keywords.some(kw => kw.trim() !== '' && normalizedQuery.includes(kw.toLowerCase()));
-    
-    if (isMatch) {
-      // Increment match count asynchronously
-      void (async () => {
-        try {
-          const { error } = await supabaseAdmin.rpc('increment_faq_match', { faq_id: faq.id });
-          if (error) console.error('RPC Error:', error);
-        } catch (e) {
-          console.error('Network Error during RPC:', e);
-        }
-      })();
-      return { matched: true, answer: faq.answer, faqId: faq.id };
-    }
-  }
-
-  return { matched: false };
+  const { data, error } = await supabaseAdmin.rpc('match_faq', {
+    p_tenant_id: tenantId, p_query: query
+  });
+  if (error || !data || data.length === 0) return { matched: false };
+  // Fire-and-forget analytics
+  void supabaseAdmin.rpc('increment_faq_match', { faq_id: data[0].id }).catch(console.error);
+  return { matched: true, answer: data[0].answer, faqId: data[0].id };
 }

@@ -11,7 +11,17 @@ const router = Router();
 router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
   try {
     const tenantId = (req as any).tenantId;
-    const { conversationId, text, providerName = 'gupshup', isInternal = false, messageType = 'text' } = req.body;
+    let { conversationId, text, providerName, isInternal = false, messageType = 'text' } = req.body;
+
+    if (!providerName) {
+      const { data: config } = await supabaseAdmin
+        .from('tenant_bsp_config')
+        .select('bsp_provider')
+        .eq('tenant_id', tenantId)
+        .limit(1)
+        .maybeSingle();
+      providerName = config?.bsp_provider || 'meta';
+    }
 
     if (!tenantId || !conversationId) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -124,7 +134,7 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
   }
 });
 
-router.post('/send-template', requireTenantMember, async (req, res) => {
+router.post('/send-template', requireTenantMember, enforceQuota, async (req, res) => {
   try {
     const tenantId = (req as any).tenantId;
     const { conversationId, templateId, templateParams, providerName = 'meta' } = req.body;

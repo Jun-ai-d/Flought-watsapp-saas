@@ -101,12 +101,14 @@ You must return a JSON object with two fields:
         content: parsed.content || "I'm sorry, I couldn't process that.",
         confidence: parsed.confidence || 'low'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       attempt++;
       console.error(`Error generating LLM response (attempt ${attempt}/${maxRetries}):`, error);
       
+      const err = error as { status?: number };
+      
       // If it's a 429 or 5xx, wait and retry. Otherwise break.
-      if (error?.status === 429 || error?.status >= 500) {
+      if (err?.status === 429 || (err?.status && err.status >= 500)) {
         if (attempt >= maxRetries) break;
         // Exponential backoff: 1s, 2s, 4s...
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));

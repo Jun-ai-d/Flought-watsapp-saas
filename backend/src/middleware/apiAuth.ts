@@ -12,13 +12,15 @@ export const requireApiKey = async (req: ApiAuthRequest, res: Response, next: Ne
     return res.status(401).json({ error: 'Missing or invalid API key format' });
   }
 
-  const apiKey = authHeader.replace('Bearer ', '');
+  const rawKey = authHeader.replace('Bearer ', '');
+  const crypto = require('crypto');
+  const hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
 
   try {
     const { data, error } = await supabaseAdmin
       .from('developer_settings')
       .select('tenant_id')
-      .eq('api_key', apiKey)
+      .eq('api_key', hashedKey)
       .single();
 
     if (error || !data) {

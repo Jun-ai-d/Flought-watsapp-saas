@@ -1,11 +1,17 @@
 import { supabaseAdmin } from '../lib/supabase';
 
-export async function fireOutboundWebhook(tenantId: string, eventData: any) {
+export interface WebhookPayload {
+  event: string;
+  data: Record<string, unknown>;
+  timestamp: string;
+}
+
+export async function fireOutboundWebhook(tenantId: string, eventData: WebhookPayload) {
   try {
     // Check if the tenant has a webhook configured
     const { data: config } = await supabaseAdmin
       .from('developer_settings')
-      .select('webhook_url, api_key')
+      .select('webhook_url, webhook_secret_encrypted')
       .eq('tenant_id', tenantId)
       .single();
 
@@ -45,9 +51,12 @@ export async function fireOutboundWebhook(tenantId: string, eventData: any) {
 
     const payloadString = JSON.stringify(eventData);
     let signature = '';
-    if (config.api_key) {
+    
+    if (config.webhook_secret_encrypted) {
+      const { decryptToken } = require('./../bsp/crypto');
       const crypto = require('crypto');
-      signature = 'sha256=' + crypto.createHmac('sha256', config.api_key).update(payloadString).digest('hex');
+      const decryptedSecret = decryptToken(config.webhook_secret_encrypted);
+      signature = 'sha256=' + crypto.createHmac('sha256', decryptedSecret).update(payloadString).digest('hex');
     }
 
     const headers: Record<string, string> = {

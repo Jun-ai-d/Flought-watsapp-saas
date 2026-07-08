@@ -11,13 +11,19 @@ const router = Router();
 const rzpKeyId = process.env.RAZORPAY_KEY_ID;
 const rzpKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
-if (process.env.NODE_ENV === 'production' && (!rzpKeyId || !rzpKeySecret)) {
-  console.warn('WARNING: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are missing. Using mock keys in production.');
+if (!rzpKeyId || !rzpKeySecret) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are missing. Billing is disabled.');
+  } else {
+    console.warn('WARNING: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are missing. Billing operations will fail.');
+  }
 }
 
+// In a real strict environment, we'd throw here, but we pass dummy values to Razorpay client
+// so the backend doesn't crash on boot, but any attempt to USE the client will fail appropriately.
 const razorpay = new Razorpay({
-  key_id: rzpKeyId || 'rzp_test_mock_key',
-  key_secret: rzpKeySecret || 'rzp_test_mock_secret',
+  key_id: rzpKeyId || 'missing_key_id',
+  key_secret: rzpKeySecret || 'missing_key_secret',
 });
 
 // Route: Create a new subscription checkout session
@@ -57,16 +63,15 @@ router.post('/create-subscription', requireTenantMember, async (req: Request, re
         .eq('id', tenantId);
     }
 
-    // 3. Create Subscription (Mock plan ID for now if none provided)
-    const targetPlanId = plan_id || process.env.RAZORPAY_STANDARD_PLAN_ID || 'plan_Oxxxxxxxxx';
+    // 3. Create Subscription
+    const targetPlanId = plan_id || process.env.RAZORPAY_STANDARD_PLAN_ID;
     
-    // Check if we are running without real keys to prevent crashing
-    if (process.env.RAZORPAY_KEY_ID === undefined) {
-      return res.json({ 
-        subscription_id: 'sub_mock_123', 
-        short_url: 'https://rzp.io/i/mockUrl',
-        mock: true 
-      });
+    if (!targetPlanId) {
+      return res.status(400).json({ error: 'No plan ID provided and no default configured.' });
+    }
+
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ error: 'Billing is not configured on this server.' });
     }
 
     const subscription = await razorpay.subscriptions.create({
@@ -107,7 +112,11 @@ router.post('/webhook', async (req: Request, res: Response) => {
   }
 
   // Use the secret if available, otherwise fallback to the dev mock secret
-  const activeSecret = secret || 'flought_secret';
+  if (!secret) {
+    console.error('RAZORPAY_WEBHOOK_SECRET is required for webhook validation');
+    return res.status(500).json({ error: 'Webhook secret not configured' });
+  }
+  const activeSecret = secret;
 
   try {
     const isValid = Razorpay.validateWebhookSignature(body, signature, activeSecret);
