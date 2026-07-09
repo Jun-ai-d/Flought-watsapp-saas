@@ -15,8 +15,22 @@ interface DashboardMetrics {
   timeSeries?: Array<{ name: string, fullDate: string, messages: number, botHandled: number, agentResponseTime?: number, aiResponseTime?: number }>;
   topicDistribution?: Array<{ name: string, value: number }>;
   currentUsage?: { messages_sent: number, llm_calls: number, stt_minutes: number };
-  avgResponseTime?: string;
+  avgAiResponseTime?: number;
+  avgAgentResponseTime?: number;
 }
+
+const formatDuration = (seconds?: number): string => {
+  if (seconds === undefined || seconds === null) return '0s';
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) {
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+};
 
 const COLORS = ['#00C49F', '#0088FE', '#FFBB28', '#FF8042', '#8884d8', '#ff6b6b'];
 
@@ -116,8 +130,8 @@ const Dashboard: React.FC = () => {
     },
     {
       title: "Avg Response Time",
-      value: displayMetrics.avgResponseTime || '00:00',
-      subtitle: "First reply",
+      value: displayMetrics.avgAiResponseTime !== undefined ? formatDuration(displayMetrics.avgAiResponseTime) : '0s',
+      subtitle: displayMetrics.avgAgentResponseTime !== undefined ? `Agent: ${formatDuration(displayMetrics.avgAgentResponseTime)}` : "First reply",
       icon: Clock,
       color: "text-blue-500",
       bg: "bg-blue-500/10"
