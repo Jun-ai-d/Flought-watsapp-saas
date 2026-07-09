@@ -72,4 +72,4 @@ BEGIN
     'message_id', v_message_id
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+$$ LANGUAGE plpgsql SECURITY DEFINER;
