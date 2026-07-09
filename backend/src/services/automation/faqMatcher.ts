@@ -24,7 +24,7 @@ export async function matchFAQ(tenantId: string, query: string): Promise<FAQMatc
       const lowerKw = kw.trim().toLowerCase();
       if (lowerKw && lowerQuery.includes(lowerKw)) {
         // Fire-and-forget analytics
-        supabaseAdmin.rpc('increment_faq_match', { p_faq_id: faq.id }).catch(e => console.error(e));
+        supabaseAdmin.rpc('increment_faq_match', { faq_id: faq.id }).then(({error}) => { if(error) console.error(error); });
         return { matched: true, answer: faq.answer, faqId: faq.id };
       }
     }
