@@ -30,7 +30,8 @@ export async function processAutomationPipeline(
   conversationId: string, 
   messageText: string,
   customerPhone: string,
-  providerName: string
+  providerName: string,
+  isNewSession: boolean = false
 ) {
   console.log(`[Pipeline] Starting for conv ${conversationId}`);
 
@@ -131,7 +132,7 @@ export async function processAutomationPipeline(
     // and the tenant has selected a fixed greeting, we bypass RAG entirely.
     // Note: history contains the CURRENT message because it was inserted in processSingleMessage, 
     // so a "new" conversation has exactly 1 message in history.
-    if (history && history.length === 1 && aiSettings?.welcome_message_type === 'fixed') {
+    if (history && (history.length === 1 || isNewSession) && aiSettings?.welcome_message_type === 'fixed') {
       const fixedGreeting = aiSettings.fixed_welcome_message || 'Hi, how can we help you today?';
       console.log(`[Pipeline] New conversation. Using fixed greeting: "${fixedGreeting}"`);
       await sendBotReply(tenantId, conversationId, customerPhone, providerName, fixedGreeting, 'faq');

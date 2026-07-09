@@ -126,7 +126,7 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   
   if (messageContent && currentStatus === 'bot') {
     // If it's a text/audio message and the bot is active, route to the AI generator
-    processAutomationPipeline(tenantId, conversationId, messageContent, msg.fromPhone, providerName).catch(e => {
+    processAutomationPipeline(tenantId, conversationId, messageContent, msg.fromPhone, providerName, result.is_new_session).catch(e => {
       console.error('Error in automation pipeline:', e);
     });
   } else if (currentStatus !== 'bot') {
