@@ -28,6 +28,10 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    if (!isInternal && messageType === 'text' && !text) {
+      return res.status(400).json({ error: 'Text content is required' });
+    }
+
     // 1. Fetch conversation details to get customer phone
     const { data: conv, error: convError } = await supabaseAdmin
       .from('conversations')
@@ -167,7 +171,11 @@ router.post('/send-template', requireTenantMember, enforceQuota, async (req, res
       .from('tenant_bsp_config')
       .select('*')
       .eq('tenant_id', tenantId)
-      .single(); // Fallback if providerName isn't matched perfectly
+      .single(); 
+      
+    if (!config) {
+      return res.status(400).json({ error: 'No WhatsApp configuration found. Please complete setup in Settings.' });
+    }
       
     const activeProvider = config?.bsp_provider || providerName;
     const provider = getBSPProvider(activeProvider);
@@ -191,7 +199,7 @@ router.post('/send-template', requireTenantMember, enforceQuota, async (req, res
       renderedBody = renderedBody.replace(`{{${index + 1}}}`, param);
     });
 
-    await supabaseAdmin.from('messages').insert({
+    const { error: msgInsertError } = await supabaseAdmin.from('messages').insert({
       conversation_id: conversationId,
       tenant_id: tenantId,
       direction: 'outbound',
@@ -200,6 +208,10 @@ router.post('/send-template', requireTenantMember, enforceQuota, async (req, res
       sender: 'agent',
       wa_message_id: sendResult.bspMessageId
     });
+
+    if (msgInsertError) {
+      console.error('Failed to save outbound template message to DB:', msgInsertError);
+    }
 
     try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }); } catch (e) { console.error(e); }
 

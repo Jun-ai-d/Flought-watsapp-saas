@@ -293,7 +293,7 @@ const Inbox: React.FC = () => {
         finalText = finalText.replace(`{{${i+1}}}`, param);
       });
       
-      const res = await fetch(`${apiUrl}/api/outbound/send`, {
+      const res = await fetch(`${apiUrl}/api/outbound/send-template`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -302,7 +302,9 @@ const Inbox: React.FC = () => {
         body: JSON.stringify({
           tenantId: tenant!.id,
           conversationId: selectedId,
-          text: finalText
+          templateId: selectedTemplate.id,
+          templateParams: templateParams,
+          providerName: 'meta'
         })
       });
       if (!res.ok) throw new Error('Failed to send template');
@@ -333,6 +335,7 @@ const Inbox: React.FC = () => {
           'x-tenant-id': tenant?.id || ''
         },
         body: JSON.stringify({
+          tenantId: tenant?.id,
           conversationId: selectedId,
           text: 'catalog',
           messageType: 'catalog',
