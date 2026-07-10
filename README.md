@@ -1,8 +1,58 @@
-# WhatsApp AI SaaS Platform
+# WhatsApp AI SaaS Platform (Flought)
 
-A multi-tenant, high-performance SaaS platform that empowers businesses to automate their customer support on WhatsApp using AI (RAG) with seamless human agent handovers. 
+A highly scalable, multi-tenant SaaS platform that empowers businesses to automate their customer support on WhatsApp using an enterprise-grade AI (RAG) engine, featuring seamless human-agent handovers.
 
 This repository contains the complete monolithic codebase (Frontend + Backend) for the SaaS, built with modern, aggressive performance optimizations and strict tenant data isolation.
+
+---
+
+## ✨ SaaS Platform Features
+
+Designed for Business Solution Providers (BSPs) to offer white-labeled WhatsApp AI support to thousands of businesses simultaneously.
+
+### 🏢 Multi-Tenancy & Security
+*   **Row Level Security (RLS):** Every Postgres table is strictly locked down. A business (tenant) can only ever query, read, or modify their own customers' data.
+*   **Platform Admin Dashboard:** A hidden super-admin panel allows the SaaS owner to provision new tenants, monitor global usage, and enforce subscription tiers.
+*   **Tier Enforcement:** Built-in quota limits per subscription tier (e.g., Free, Pro, Enterprise). If a tenant runs out of AI credits, the system gracefully falls back to Human Only mode until they upgrade.
+*   **Meta BSP Compliance:** Fully compliant with Meta's strict WhatsApp API guidelines, including built-in Data Deletion callbacks, Terms of Service, Privacy Policies, and opt-out flows.
+
+### 👥 Human-Agent Collaboration Inbox
+*   **Real-time WebSockets:** The React frontend uses Supabase Realtime to stream incoming WhatsApp messages to human agents instantly.
+*   **Agent Presence & Claiming:** Multiple agents can work in the same inbox. A "Claim" system prevents two agents from replying to the same customer.
+*   **Optimistic UI:** When an agent sends a message, it appears instantly in the UI with a "Pending" tick, updating to "Delivered" or "Read" based on WhatsApp webhook receipts.
+
+---
+
+## 🧠 The "Ultimate RAG" Engine
+
+This platform goes beyond naive vector search. It features an advanced, heavily optimized AI pipeline designed to minimize LLM token costs while maximizing response accuracy.
+
+### 1. Adaptive Agent Router (`gpt-4o-mini`)
+Instead of blindly running expensive RAG pipelines for every message, an ultra-fast routing model classifies incoming messages:
+*   **Conversational:** Instantly replies to "Hello", "Thanks", or "Goodbye" without searching the database.
+*   **Actionable:** Recognizes requests like "Cancel my order" and triggers specific workflows or hands the conversation over to a human.
+*   **Knowledge:** Routes complex questions to the RAG pipeline.
+*   **Split-Intent Handling:** If a user says *"Cancel my order AND what are your hours?"*, the router detects an array of intents and processes both simultaneously.
+
+### 2. Zero-Latency Semantic Caching
+To drastically reduce OpenAI API costs, we built a Semantic Cache using `pgvector` (`hnsw` index):
+*   When a user asks a question, the system vectorizes it and checks the cache.
+*   If anyone asked a highly similar question recently (Cosine Similarity > 0.95), the bot instantly returns the cached AI response, costing **zero** LLM generation tokens.
+*   **Cross-Lingual Support:** The Agent Router automatically translates inbound questions to English in the background, ensuring a Spanish question and an Arabic question both successfully hit the same English cached response.
+*   **Poisoning Prevention:** All AI responses run through OpenAI's `moderations` API before caching, ensuring hackers cannot inject malicious responses into the shared semantic cache.
+
+### 3. Auto-FAQ Miner (Self-Learning)
+The bot gets smarter over time automatically.
+*   A nightly cron job (`runAutoFaqMiner`) scans the last 7 days of chat logs across all tenants.
+*   It identifies high-frequency questions (asked 3+ times).
+*   It uses the LLM to generate the perfect, canonical answer and saves it to the database as a `Draft`.
+*   Tenant Admins click "Approve" in their dashboard, instantly upgrading it to a hardcoded FAQ, completely bypassing expensive RAG generation for future identical queries while preventing AI hallucination loops.
+
+### 4. Hybrid Search (Vector + BM25)
+Standard Vector Search is bad at finding exact product numbers (SKUs) or order IDs. 
+*   We use a custom Postgres RPC to perform **Reciprocal Rank Fusion (RRF)**.
+*   It combines `pgvector` semantic meaning with `BM25` exact-keyword matching.
+*   **Typo Blindness Fix:** The router automatically strips hyphens and spaces from product codes (e.g., `SKU-123` -> `sku123`) to ensure BM25 always finds the right document.
 
 ---
 
@@ -27,25 +77,14 @@ This SaaS is built on a highly optimized, modern tech stack designed for speed, 
 
 ### Frontend
 - **Framework:** React 18 powered by Vite.
-- **Routing:** React Router DOM (v6).
-- **Performance:** Implements aggressive route-based code splitting using `React.lazy()` and `<Suspense>`. Users only download the specific JavaScript bundle for the page they are viewing, drastically reducing initial load times.
-- **Styling (Pro Max UI):** 
-  - **Tailwind CSS v4:** The entire CSS architecture uses the highly-performant Tailwind v4 engine, resulting in a zero-runtime-overhead styling solution.
-  - **Radix UI:** Headless UI primitives (Dialogs, Dropdowns) are used for accessible, unstyled interactive components.
-  - **Design Language:** Clean, premium aesthetic featuring dark mode glassmorphism, dynamic gradients, and the official Flought brand identity.
-- **3D Marketing Pipeline:** The landing page utilizes `@react-three/fiber` and `@react-three/rapier` for a real-time physics simulation, visualizing the automated AI-to-Human Handover pipeline in a beautiful, performant 3D canvas.
-- **Meta Compliance:** All legal documentation (Privacy Policy, Terms of Service, Data Deletion) is fully implemented and explicitly formatted to meet Meta's rigorous Business Solution Provider (BSP) dashboard requirements.
+- **Routing:** React Router DOM (v6) with aggressive `<Suspense>` lazy-loading.
+- **Styling (Pro Max UI):** Tailwind CSS v4 + Radix UI primitives. Clean, premium aesthetic featuring dark mode glassmorphism, dynamic gradients, and the official Flought brand identity.
+- **3D Marketing Pipeline:** The landing page utilizes `@react-three/fiber` and `@react-three/rapier` for a real-time physics simulation of the AI-to-Human Handover pipeline.
 
 ### Backend & Database
 - **Database:** PostgreSQL (via Supabase).
-- **Auth:** Supabase Auth with Row Level Security (RLS) guaranteeing strict multi-tenant isolation.
 - **API:** Node.js / Express backend handles secure routes (tenant provisioning, WhatsApp Webhook ingestion, outbound BSP API calls).
-- **Security:** Strict payload validation enforces enum constraints (`region`, `tier`) and string lengths before inserting records into Postgres.
-
-### AI & RAG Pipeline
-- **Models:** Claude Haiku for RAG generation, Whisper for voice-note STT.
-- **Vector Database:** Supabase `pgvector`.
-- **Retrieval Optimization:** We utilize a custom Postgres RPC function (`match_knowledge_chunks`) to execute K-Nearest Neighbor (KNN) vector similarity searches natively in the database using the `<=>` operator. This prevents Node.js memory leaks and ensures lightning-fast RAG retrieval as knowledge bases scale.
+- **Concurrency Control:** Utilizes strict PostgreSQL Row Locks (`FOR UPDATE`) and Optimistic Concurrency Control (OCC) to prevent duplicate webhook processing and race conditions.
 
 ---
 
@@ -63,28 +102,5 @@ d:\Watsapp saas\
 │   ├── src/routes/       # API Controllers (webhooks, admin, outbound)
 │   └── src/services/     # RAG, LLM, and BSP abstraction layer
 ├── supabase/             # Supabase config and SQL migrations
-├── ARCHITECTURE.md       # Deep-dive into data flow and RLS
-├── SITEMAP.md            # Map of all frontend and backend routes
-├── PLAN.md               # Living implementation roadmap
 └── README.md             # 👈 You are here
 ```
-
----
-
-## 🔐 Multi-Tenancy & Security
-Because this is a SaaS application, a single Postgres database holds data for multiple different businesses. We strictly enforce isolation using **Postgres Row Level Security (RLS)**.
-
-Every table has an RLS policy that essentially says:
-> *You can only SELECT/INSERT/UPDATE this row if the `tenant_id` matches the business you are authenticated with.*
-
-There is also a strict **Platform Admin** bypass, allowing SaaS owners to log into a hidden dashboard to provision new businesses and manage subscription tiers.
-
----
-
-## 💬 The WhatsApp Loop
-When a customer sends a WhatsApp message to a business using this SaaS:
-1. **Webhook:** Gupshup/BSP POSTs to our Express backend.
-2. **State Check:** We check Postgres to see if the conversation is `bot` or `handover_pending`.
-3. **RAG:** If `bot`, we query `pgvector` for context.
-4. **LLM:** We ask Claude to answer securely using strict JSON outputs.
-5. **Action:** If the LLM has high confidence, it replies. If it has low confidence, it mutes the AI and alerts human agents on the React frontend via Supabase Realtime WebSockets.

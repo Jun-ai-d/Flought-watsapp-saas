@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { LinkedLogo, Logo } from './Logo';
+import { LinkedLogo, Logo } from '../Logo';
 
-const MarketingLayout: React.FC = () => {
+const DesktopMarketingLayout: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
 
@@ -67,4 +67,4 @@ const MarketingLayout: React.FC = () => {
   );
 };
 
-export default MarketingLayout;
+export default DesktopMarketingLayout;

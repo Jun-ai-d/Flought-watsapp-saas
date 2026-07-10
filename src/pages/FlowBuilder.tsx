@@ -89,21 +89,14 @@ export default function FlowBuilder() {
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === nodeId) {
-          n.data = { ...n.data, [field]: value };
+          return { ...n, data: { ...n.data, [field]: value } };
         }
         return n;
       })
     );
   }, [setNodes]);
 
-  useEffect(() => {
-    setNodes((nds) => 
-      nds.map(n => ({
-        ...n,
-        data: { ...n.data, onChange: handleNodeDataChange }
-      }))
-    );
-  }, [nodes.length, handleNodeDataChange, setNodes]);
+  // (useEffect removed as it caused infinite re-renders by continuously modifying the state array)
 
   const onConnect = useCallback(
     (params: any) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#00B2FF', strokeWidth: 2 } }, eds)),

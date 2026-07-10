@@ -5,7 +5,7 @@ import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-mo
 import { Helmet } from 'react-helmet-async';
 import anime from 'animejs';
 
-const HeroPipeline = lazy(() => import('../../components/3d/HeroPipeline'));
+const HeroPipeline = lazy(() => import('../../../components/3d/HeroPipeline'));
 
 const TiltCard = ({ children, className }: { children: React.ReactNode, className?: string }) => {
   const x = useMotionValue(0);
@@ -89,7 +89,7 @@ const HeroSection = () => {
   }
 
   return (
-    <section className="relative pt-32 pb-40 overflow-hidden bg-white border-b border-[#EAEAEA]">
+    <section className="relative pt-16 pb-20 overflow-hidden bg-white border-b border-[#EAEAEA]">
       <Helmet>
         <title>Flought | Automate Your WhatsApp Business</title>
         <meta name="description" content="Put your WhatsApp on autopilot. A complete WhatsApp OS with native Shopify & CRM sync, automated Drip Campaigns, and strict pgvector RAG." />
@@ -137,7 +137,7 @@ const HeroSection = () => {
       </div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="flex flex-col gap-10 items-center">
           
           <div className="text-left">
             <div className="hero-subtext opacity-0 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#002E23]/5 text-[#002E23] font-semibold text-sm mb-8 border border-[#002E23]/10">
@@ -145,13 +145,13 @@ const HeroSection = () => {
               Flought OS v2.0
             </div>
             
-            <h1 ref={textRef} className="text-5xl md:text-7xl font-bold tracking-tight text-[#00221A] leading-tight mb-6">
+            <h1 ref={textRef} className="text-4xl sm:text-5xl font-bold tracking-tight text-[#00221A] leading-[1.1] mb-6">
               Put your WhatsApp <br/>
               on <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#002E23] to-[#4A6B5D]">autopilot.</span>
             </h1>
             
-            <p className="hero-subtext opacity-0 text-xl text-[#4A6B5D] max-w-xl mb-12 font-medium leading-relaxed">
-              Not a generic chatbot. A complete WhatsApp OS with native <strong className="text-[#002E23] font-semibold">Shopify & CRM sync</strong>, automated <strong className="text-[#002E23] font-semibold">Drip Campaigns</strong>, and strict <strong className="text-[#002E23] font-semibold">pgvector RAG</strong> to resolve 80% of support queries instantly.
+            <p className="hero-subtext opacity-0 text-base sm:text-lg text-[#4A6B5D] max-w-xl mb-10 font-medium leading-relaxed">
+              Not a generic chatbot. A complete WhatsApp OS with native <strong className="text-[#002E23] font-semibold">Shopify & CRM sync</strong>, <strong className="text-[#002E23] font-semibold">Self-Learning RAG</strong>, and <strong className="text-[#002E23] font-semibold">Zero-Latency Caching</strong> to resolve 80% of support queries instantly.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-start gap-6">
@@ -168,8 +168,8 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <div className="hero-3d relative lg:h-[700px] flex items-center justify-center z-50">
-            <Suspense fallback={<div className="w-full h-full min-h-[500px]" />}>
+          <div className="hero-3d relative h-[350px] sm:h-[450px] w-full flex items-center justify-center z-50 mt-4 sm:mt-8">
+            <Suspense fallback={<div className="w-full h-full min-h-[350px]" />}>
               <HeroPipeline queryVolume={1000} percentSolved={0.8} />
             </Suspense>
           </div>
@@ -209,7 +209,7 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
   );
 };
 
-const Home: React.FC = () => {
+const MobileHome: React.FC = () => {
   return (
     <div className="flex flex-col w-full bg-[#FAFAFA] text-[#00221A]">
       <HeroSection />
@@ -345,8 +345,8 @@ const Home: React.FC = () => {
                   </motion.div>
                   <h3 className="text-2xl font-bold mb-8">Autonomous Scale</h3>
                   <ul className="space-y-6 text-lg text-[#F8F9FA]">
-                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Instant, strict RAG answers block 80% of volume.</li>
-                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Automated drip campaigns re-engage dead leads.</li>
+                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Instant, Hybrid RAG answers block 80% of volume.</li>
+                    <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Semantic Caching reduces LLM token costs to zero.</li>
                     <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Native Shopify sync handles order tracking automatically.</li>
                     <li className="flex items-start gap-4"><span className="text-white mt-1">•</span>Human agents only step in for high-value closures.</li>
                   </ul>
@@ -395,7 +395,7 @@ const Home: React.FC = () => {
               </p>
             </motion.div>
             
-            {/* Feature 2 */}
+            {/* Feature 2: Agent Router */}
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -409,9 +409,69 @@ const Home: React.FC = () => {
                   <Activity size={24} />
                 </motion.div>
               </div>
-              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Drip Campaigns</h3>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Adaptive Routing</h3>
               <p className="text-[#4A6B5D] leading-relaxed">
-                Build sophisticated WhatsApp sequences to nurture leads, recover abandoned carts, and re-engage dormant users over time.
+                An ultra-fast LLM classifies user intent. If a user asks "Cancel my order AND what are your hours?", it splits and handles both simultaneously.
+              </p>
+            </motion.div>
+
+            {/* Feature 3: Semantic Caching */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ rotate: [0, 360] }} transition={{ repeat: Infinity, duration: 10, ease: "linear" }}>
+                  <Zap size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Zero-Latency Caching</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                We safely cache AI responses globally. If multiple users ask similar questions across different languages, they get instant answers with zero LLM cost.
+              </p>
+            </motion.div>
+
+            {/* Feature 4: Auto-FAQ Miner */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
+                  <Bot size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Self-Learning Miner</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                A nightly engine analyzes your chat logs to find high-frequency questions, automatically generating draft FAQs to continually smarten your bot.
+              </p>
+            </motion.div>
+
+            {/* Feature 5: Hybrid Search */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)" }} 
+              className="bg-white p-8 rounded-3xl border border-[#EAEAEA] transition-all"
+            >
+              <div className="w-14 h-14 bg-[#FAFAFA] rounded-xl flex items-center justify-center mb-6 text-[#002E23] border border-[#EAEAEA]">
+                <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}>
+                  <Database size={24} />
+                </motion.div>
+              </div>
+              <h3 className="text-2xl font-bold text-[#00221A] mb-4">Hybrid Search (RRF)</h3>
+              <p className="text-[#4A6B5D] leading-relaxed">
+                Combines pgvector semantic understanding with BM25 exact keyword matching, ensuring product SKUs and Order IDs are never missed.
               </p>
             </motion.div>
             
@@ -504,7 +564,7 @@ const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 space-y-32">
           
           {/* Row 1 */}
-          <div className="flex flex-col md:flex-row items-center gap-16">
+          <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
             <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="w-full md:w-1/2">
               <div className="aspect-square rounded-3xl bg-[#FAFAFA] border border-[#EAEAEA] shadow-inner p-8 flex items-center justify-center relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-tr from-[#002E23]/5 to-transparent"></div>
@@ -544,7 +604,7 @@ const Home: React.FC = () => {
           </div>
 
           {/* Row 2 */}
-          <div className="flex flex-col md:flex-row-reverse items-center gap-16">
+          <div className="flex flex-col md:flex-row-reverse items-center gap-10 md:gap-16">
             <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="w-full md:w-1/2">
               <div className="aspect-square rounded-3xl bg-[#002E23] p-8 flex flex-col justify-center relative overflow-hidden group shadow-2xl shadow-[#002E23]/20">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
@@ -654,4 +714,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home;
+export default MobileHome;

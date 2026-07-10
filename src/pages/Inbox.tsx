@@ -610,7 +610,7 @@ const Inbox: React.FC = () => {
   }, [messages, formatTime]);
 
   return (
-    <div className="flex h-full theme-card overflow-hidden">
+    <div className="flex h-full bg-theme-surface md:bg-transparent overflow-hidden md:theme-card">
       {/* List Pane */}
       <div className={cn(
         "border-r border-theme-border flex-col bg-theme-surface transition-all duration-300",
@@ -698,7 +698,7 @@ const Inbox: React.FC = () => {
       )}>
         {selectedConv ? (
           <>
-            <div className="p-4 md:p-6 bg-theme-surface border-b border-theme-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm z-10 shrink-0">
+            <div className="p-3 md:p-6 bg-theme-surface border-b border-theme-border flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 shadow-sm z-10 shrink-0">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSelectedId(null)}
@@ -713,12 +713,12 @@ const Inbox: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 {selectedConv.status === 'handover_pending' ? (
-                  <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-brand-accent text-white font-bold tracking-wide hover:bg-brand-accent-light transition-colors border border-brand-accent flex items-center theme-button shadow-sm" onClick={handleClaim}>
+                  <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-brand-accent text-white font-bold tracking-wide hover:bg-brand-accent-light transition-colors border border-brand-accent flex items-center theme-button shadow-sm w-full md:w-auto justify-center" onClick={handleClaim}>
                     <User size={16} className="mr-1 md:mr-2" /> Claim & Reply
                   </button>
                 ) : selectedConv.status === 'handover_active' ? (
                   <>
-                    <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-green-500 text-white font-bold tracking-wide hover:bg-green-600 transition-colors border border-green-600 flex items-center theme-button shadow-sm" onClick={handleResolve}>
+                    <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-green-500 text-white font-bold tracking-wide hover:bg-green-600 transition-colors border border-green-600 flex items-center theme-button shadow-sm w-full md:w-auto justify-center" onClick={handleResolve}>
                       <Check size={16} className="mr-1 md:mr-2" /> Resolve
                     </button>
                     <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-theme-surface text-theme-text font-bold tracking-wide hover:bg-theme-surface-hover transition-colors border border-theme-border flex items-center theme-button shadow-sm" onClick={handleReturnToBot}>
@@ -733,7 +733,7 @@ const Inbox: React.FC = () => {
                     Reopen
                   </button>
                 ) : (
-                  <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-theme-surface text-theme-text font-bold tracking-wide hover:bg-theme-surface-hover transition-colors border border-theme-border flex items-center theme-button shadow-sm" onClick={handleResolve}>
+                  <button className="px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base bg-theme-surface text-theme-text font-bold tracking-wide hover:bg-theme-surface-hover transition-colors border border-theme-border flex items-center theme-button shadow-sm w-full md:w-auto justify-center" onClick={handleResolve}>
                     <Check size={16} className="mr-1 md:mr-2 text-green-500" /> Mark Resolved
                   </button>
                 )}
@@ -774,7 +774,7 @@ const Inbox: React.FC = () => {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
               {memoizedMessages}
             </div>
 
@@ -783,7 +783,7 @@ const Inbox: React.FC = () => {
                 <textarea 
                   placeholder={isInternal ? "Type an internal note (customers won't see this)..." : "Type a reply..."} 
                   className={cn(
-                    "w-full p-2 text-sm md:p-3 md:text-base border bg-theme-bg text-theme-text focus:outline-none resize-none h-14 md:h-24 transition-colors disabled:opacity-50 theme-button",
+                    "w-full p-2 text-[13px] md:p-3 md:text-base border bg-theme-bg text-theme-text focus:outline-none resize-none h-12 md:h-24 transition-colors disabled:opacity-50 theme-button",
                     isInternal ? "bg-yellow-500/10 border-yellow-500/50 focus:border-yellow-500 placeholder:text-yellow-500/50" : "border-theme-border focus:border-brand-accent"
                   )}
                   disabled={selectedConv.status === 'resolved' || selectedConv.status === 'handover_pending' || selectedConv.status === 'bot' || (!isInternal && isOutside24hWindow)}
@@ -837,7 +837,7 @@ const Inbox: React.FC = () => {
                   </div>
                   <button 
                     className={cn(
-                      "px-4 py-1.5 md:px-6 md:py-2 text-sm md:text-base text-white font-bold disabled:opacity-50 transition-colors flex items-center theme-button shadow-sm",
+                      "px-3 py-1.5 md:px-6 md:py-2 text-xs md:text-base text-white font-bold disabled:opacity-50 transition-colors flex items-center theme-button shadow-sm",
                       isInternal ? "bg-yellow-500 hover:bg-yellow-600" : "bg-brand-accent hover:bg-brand-accent-light"
                     )}
                     disabled={selectedConv.status === 'resolved' || selectedConv.status === 'handover_pending' || selectedConv.status === 'bot'}

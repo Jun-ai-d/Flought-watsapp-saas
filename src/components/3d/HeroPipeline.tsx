@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, RoundedBox, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -159,15 +159,24 @@ const BlockStream = ({ queryVolume = 1000, percentSolved = 0.8 }: HeroPipelinePr
 };
 
 export default function HeroPipeline({ queryVolume = 1000, percentSolved = 0.8 }: HeroPipelineProps) {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
-    <div className="w-full h-full relative pointer-events-none">
-      <Canvas camera={{ position: [0, 1, 13], fov: 45 }}>
+    <div className="w-full h-full min-h-[450px] md:min-h-0 relative pointer-events-none">
+      <Canvas camera={{ position: [0, 1, 14], fov: 45 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={1.5} color="#ffffff" />
         <directionalLight position={[-5, -5, -5]} intensity={0.5} color="#002E23" />
         
         <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
-          <group rotation={[0, 0, 0]}>
+          <group rotation={[0, 0, isMobile ? Math.PI / 2 : 0]}>
               
               {/* RESOLVED QUERIES CONTAINER (Top) */}
               <Float speed={1.5} rotationIntensity={0.05} floatIntensity={0.2} floatingRange={[-0.1, 0.1]}>
@@ -175,7 +184,7 @@ export default function HeroPipeline({ queryVolume = 1000, percentSolved = 0.8 }
                   <meshPhysicalMaterial color="#ffffff" transmission={0.9} transparent opacity={1} roughness={0.2} ior={1.5} thickness={0.5} />
                 </RoundedBox>
                 <Html position={[-0.5, 3.5, 0.6]} center className="pointer-events-none">
-                  <div className="text-sm font-bold text-emerald-900 uppercase tracking-widest drop-shadow-md">
+                  <div className="text-[10px] md:text-sm font-bold text-emerald-900 uppercase tracking-widest drop-shadow-md whitespace-nowrap">
                     Resolved Queries
                   </div>
                 </Html>
@@ -187,7 +196,7 @@ export default function HeroPipeline({ queryVolume = 1000, percentSolved = 0.8 }
                   <meshPhysicalMaterial color="#ffffff" transmission={0.9} transparent opacity={1} roughness={0.2} ior={1.5} thickness={0.5} />
                 </RoundedBox>
                 <Html position={[5.5, -0.5, 1.1]} center className="pointer-events-none">
-                  <div className="text-sm font-bold text-emerald-900 uppercase tracking-widest drop-shadow-md">
+                  <div className="text-[10px] md:text-sm font-bold text-emerald-900 uppercase tracking-widest drop-shadow-md">
                     Users
                   </div>
                 </Html>
@@ -197,8 +206,8 @@ export default function HeroPipeline({ queryVolume = 1000, percentSolved = 0.8 }
               <RoundedBox args={[0.3, 4, 2]} radius={0.1} position={[1.5, -0.5, 0]}>
                 <meshPhysicalMaterial color="#004d3a" transmission={0.95} transparent opacity={1} roughness={0.1} ior={1.5} thickness={1} />
               </RoundedBox>
-              <Html position={[1.5, -3, 0]} center className="pointer-events-none">
-                <div className="bg-emerald-50 px-3 py-1.5 rounded-md shadow-lg border border-emerald-200 text-[11px] font-bold text-emerald-900 whitespace-nowrap text-center">
+              <Html position={[1.5, -3.2, 0]} center className="pointer-events-none">
+                <div className="bg-emerald-50 px-2 md:px-3 py-1 md:py-1.5 rounded-md shadow-lg border border-emerald-200 text-[9px] md:text-[11px] font-bold text-emerald-900 whitespace-nowrap text-center">
                   Flought AI<br/>FAQs RAGS
                 </div>
               </Html>
@@ -207,8 +216,8 @@ export default function HeroPipeline({ queryVolume = 1000, percentSolved = 0.8 }
               <RoundedBox args={[0.3, 4, 2]} radius={0.1} position={[-2.5, -0.5, 0]}>
                 <meshPhysicalMaterial color="#fb923c" transmission={0.95} transparent opacity={1} roughness={0.1} ior={1.5} thickness={1} />
               </RoundedBox>
-              <Html position={[-2.5, -3, 0]} center className="pointer-events-none">
-                <div className="bg-amber-50 px-3 py-1.5 rounded-md shadow-lg border border-amber-200 text-[11px] font-bold text-amber-900 whitespace-nowrap text-center">
+              <Html position={[-2.5, -3.2, 0]} center className="pointer-events-none">
+                <div className="bg-amber-50 px-2 md:px-3 py-1 md:py-1.5 rounded-md shadow-lg border border-amber-200 text-[9px] md:text-[11px] font-bold text-amber-900 whitespace-nowrap text-center">
                   Human Handover
                 </div>
               </Html>
@@ -217,44 +226,44 @@ export default function HeroPipeline({ queryVolume = 1000, percentSolved = 0.8 }
               {/* Users to AI */}
               <Html position={[3.5, 1.2, 0.5]} center className="pointer-events-none">
                 <div className="flex flex-col items-center">
-                  <span className="text-slate-500 text-sm font-black leading-none mb-1">←</span>
-                  <span className="text-slate-500 text-xl font-black tracking-tight leading-none drop-shadow-sm">Query</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black leading-none mb-0.5 md:mb-1">{isMobile ? '↓' : '←'}</span>
+                  <span className="text-slate-500 text-[11px] md:text-xl font-black tracking-tight leading-none drop-shadow-sm">Query</span>
                 </div>
               </Html>
               <Html position={[3.5, -1.5, 0.5]} center className="pointer-events-none">
                 <div className="flex flex-col items-center">
-                  <span className="text-emerald-500 text-sm font-black leading-none mb-1">→</span>
-                  <span className="text-emerald-500 text-base font-black tracking-tight leading-none text-center drop-shadow-sm">Automatic<br/>Reply</span>
+                  <span className="text-emerald-500 text-[10px] md:text-sm font-black leading-none mb-0.5 md:mb-1">{isMobile ? '↑' : '→'}</span>
+                  <span className="text-emerald-500 text-[10px] md:text-base font-black tracking-tight leading-none text-center drop-shadow-sm">Automatic<br/>Reply</span>
                 </div>
               </Html>
 
               {/* AI to Resolved */}
               <Html position={[1.5, 1.8, 0.5]} center className="pointer-events-none">
                 <div className="flex flex-col items-center">
-                  <span className="text-slate-500 text-sm font-black leading-none mb-1">↑</span>
-                  <span className="text-slate-500 text-sm font-black tracking-tight leading-none drop-shadow-sm">Query</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black leading-none mb-0.5 md:mb-1">{isMobile ? '←' : '↑'}</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black tracking-tight leading-none drop-shadow-sm">Query</span>
                 </div>
               </Html>
 
               {/* AI to Human */}
               <Html position={[-0.5, 0.2, 0.5]} center className="pointer-events-none">
                 <div className="flex flex-col items-center">
-                  <span className="text-slate-500 text-sm font-black leading-none mb-1">←</span>
-                  <span className="text-slate-500 text-sm font-black tracking-tight leading-none drop-shadow-sm">Query</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black leading-none mb-0.5 md:mb-1">{isMobile ? '↓' : '←'}</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black tracking-tight leading-none drop-shadow-sm">Query</span>
                 </div>
               </Html>
               <Html position={[-0.5, -2.0, 0.5]} center className="pointer-events-none">
                 <div className="flex flex-col items-center">
-                  <span className="text-emerald-500 text-sm font-black leading-none mb-1">→</span>
-                  <span className="text-emerald-500 text-base font-black tracking-tight leading-none text-center drop-shadow-sm">Human<br/>Agent</span>
+                  <span className="text-emerald-500 text-[10px] md:text-sm font-black leading-none mb-0.5 md:mb-1">{isMobile ? '↑' : '→'}</span>
+                  <span className="text-emerald-500 text-[10px] md:text-base font-black tracking-tight leading-none text-center drop-shadow-sm">Human<br/>Agent</span>
                 </div>
               </Html>
 
               {/* Human to Resolved */}
               <Html position={[-2.5, 1.8, 0.5]} center className="pointer-events-none">
                 <div className="flex flex-col items-center">
-                  <span className="text-slate-500 text-sm font-black leading-none mb-1">↑</span>
-                  <span className="text-slate-500 text-sm font-black tracking-tight leading-none drop-shadow-sm">Query</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black leading-none mb-0.5 md:mb-1">{isMobile ? '←' : '↑'}</span>
+                  <span className="text-slate-500 text-[10px] md:text-sm font-black tracking-tight leading-none drop-shadow-sm">Query</span>
                 </div>
               </Html>
 
