@@ -11,7 +11,7 @@ const router = Router();
 router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
   try {
     const tenantId = (req as any).tenantId;
-    let { conversationId, text, providerName, isInternal = false, messageType = 'text' } = req.body;
+    let { conversationId, text, providerName, isInternal = false, messageType = 'text', expectedVersion } = req.body;
 
     if (!providerName) {
       const { data: config } = await supabaseAdmin
@@ -35,13 +35,28 @@ router.post('/send', requireTenantMember, enforceQuota, async (req, res) => {
     // 1. Fetch conversation details to get customer phone
     const { data: conv, error: convError } = await supabaseAdmin
       .from('conversations')
-      .select('customer_phone')
+      .select('customer_phone, version')
       .eq('id', conversationId)
       .eq('tenant_id', tenantId)
       .single();
 
     if (convError || !conv) {
       return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // 1.2 Optimistic Concurrency Control
+    if (expectedVersion !== undefined) {
+      const { data: updatedConv, error: updateError } = await supabaseAdmin
+        .from('conversations')
+        .update({ version: expectedVersion + 1 })
+        .eq('id', conversationId)
+        .eq('version', expectedVersion)
+        .select()
+        .maybeSingle();
+
+      if (updateError || !updatedConv) {
+         return res.status(409).json({ error: 'Conflict: Conversation was modified by another agent or AI. Please refresh.' });
+      }
     }
 
     let bspMessageId = `internal-${Date.now()}`;

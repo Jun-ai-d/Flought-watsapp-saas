@@ -33,22 +33,22 @@ const Features: React.FC = () => {
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-8 shadow-sm border border-[#EAEAEA]">
                 <Database size={32} className="text-[#002E23]" />
               </div>
-              <h2 className="text-4xl font-bold text-[#00221A] mb-6 tracking-tight">Strict Vector RAG</h2>
+              <h2 className="text-4xl font-bold text-[#00221A] mb-6 tracking-tight">Ultimate RAG Engine</h2>
               <p className="text-lg text-[#4A6B5D] mb-8 leading-relaxed">
-                Most AI bots hallucinate. Flought uses Supabase pgvector to strictly limit responses to your provided PDFs and website data.
+                Most AI bots hallucinate or cost a fortune. Flought uses an advanced Agentic Router, Semantic Caching, and Hybrid pgvector Search to deliver lightning-fast, zero-hallucination replies.
               </p>
               <ul className="space-y-4 text-lg font-medium text-[#00221A]">
                 <li className="flex items-start gap-3">
                   <span className="text-[#002E23] mt-1">•</span>
-                  Instant embedding of PDFs & text blocks.
+                  Instant Semantic Caching for zero-cost repeated questions.
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-[#002E23] mt-1">•</span>
-                  AI answers ONLY based on vectorized context.
+                  Self-Learning Auto-FAQ Miner gets smarter every night.
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-[#002E23] mt-1">•</span>
-                  Unknowns result in graceful human fallback.
+                  Hybrid Vector + BM25 search for absolute precision.
                 </li>
               </ul>
             </div>
@@ -71,7 +71,7 @@ const Features: React.FC = () => {
                   <div className="flex justify-center">
                     <div className="bg-[#002E23]/5 text-[#002E23] text-xs font-semibold px-4 py-2 rounded-full flex items-center gap-2 border border-[#002E23]/10">
                       <span className="w-2 h-2 rounded-full bg-[#002E23] animate-pulse"></span>
-                      Executing similarity search
+                      Executing semantic cache check...
                     </div>
                   </div>
 

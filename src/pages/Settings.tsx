@@ -7,7 +7,13 @@ import { useTheme } from '../contexts/ThemeContext';
 import type { DesignLanguage, ColorMode, AccentColor } from '../contexts/ThemeContext';
 import { cn } from '../lib/utils';
 import { BSP_PROVIDERS, DEFAULT_BSP_PROVIDER } from '../lib/bspProviders';
-import { Moon, Sun, Monitor, Palette, CheckCircle2, HelpCircle, Code, Copy, RefreshCw, ShoppingBag, Zap, Trash, Bot } from 'lucide-react';
+import { Moon, Sun, Monitor, Palette, CheckCircle2, HelpCircle, Code, Copy, RefreshCw, ShoppingBag, Zap, Trash, Bot, ChevronDown, ChevronRight } from 'lucide-react';
+
+declare global {
+  interface Window {
+    FB: any;
+  }
+}
 
 const Settings: React.FC = () => {
   const { tenant, session } = useAuth();
@@ -31,10 +37,14 @@ const Settings: React.FC = () => {
     welcome_message_type: 'fixed' | 'llm';
     fixed_welcome_message: string;
     system_prompt: string;
+    session_timeout_hours?: number;
+    session_closing_message?: string;
   }>({
     welcome_message_type: 'fixed',
     fixed_welcome_message: '',
-    system_prompt: ''
+    system_prompt: '',
+    session_timeout_hours: 4,
+    session_closing_message: ''
   });
   const [savingAiSettings, setSavingAiSettings] = useState(false);
 
@@ -457,6 +467,41 @@ const Settings: React.FC = () => {
                   </p>
                 </div>
 
+                <div className="pt-6 mt-6 border-t border-theme-border space-y-6">
+                  <h3 className="text-lg font-bold text-theme-text flex items-center gap-2">
+                    Session Lifecycle & Memory
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-theme-text-muted">Session Timeout (Hours)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="24"
+                      value={aiSettings.session_timeout_hours || 4}
+                      onChange={(e) => setAiSettings({...aiSettings, session_timeout_hours: parseInt(e.target.value) || 4})}
+                      className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-brand-accent transition-colors theme-button"
+                    />
+                    <p className="text-xs text-theme-text-muted mt-1">
+                      If a customer is inactive for this many hours, the AI will automatically close the session. Their next message will be treated as a brand new conversation.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-theme-text-muted">Auto-Closing Message</label>
+                    <textarea 
+                      value={aiSettings.session_closing_message || ''}
+                      onChange={(e) => setAiSettings({...aiSettings, session_closing_message: e.target.value})}
+                      placeholder="It seems you've been inactive for a while, so I'll go ahead and close this chat. Message us anytime if you need help!"
+                      rows={2}
+                      className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-brand-accent transition-colors theme-button resize-none"
+                    />
+                    <p className="text-xs text-theme-text-muted mt-1">
+                      Optional. If provided, the AI will send this message when a session expires. Leave blank to expire sessions silently.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="pt-4 border-t border-theme-border">
                   <button 
                     type="submit" 
@@ -528,6 +573,7 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
   const queryClient = useQueryClient();
   const [bspForm, setBspForm] = useState({ provider: DEFAULT_BSP_PROVIDER, waba_id: '', phone_id: '', api_key: '', catalog_id: '' });
   const [savingBsp, setSavingBsp] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const { data: bspConfig, isLoading } = useQuery({
     queryKey: ['tenant-bsp', tenantId],
@@ -543,6 +589,69 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
       return res.json();
     },
   });
+
+  useEffect(() => {
+    if (window.FB) return;
+    const script = document.createElement('script');
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      window.FB.init({
+        appId: import.meta.env.VITE_META_APP_ID || '',
+        cookie: true,
+        xfbml: true,
+        version: 'v21.0'
+      });
+    };
+    document.body.appendChild(script);
+  }, []);
+
+  const exchangeFbTokenMutation = useMutation({
+    mutationFn: async (accessToken: string) => {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/tenant/integrations/meta/oauth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'x-tenant-id': tenantId
+        },
+        body: JSON.stringify({ access_token: accessToken })
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to exchange token');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      alert('WhatsApp Business Account successfully linked!');
+      queryClient.invalidateQueries({ queryKey: ['tenant-bsp'] });
+    },
+    onError: (err: any) => {
+      alert(`Facebook authentication failed: ${err.message}`);
+    }
+  });
+
+  const handleFacebookLogin = () => {
+    if (!window.FB) {
+      alert('Facebook SDK is still loading. Please try again in a moment.');
+      return;
+    }
+    
+    window.FB.login((response: any) => {
+      if (response.authResponse && response.authResponse.code) {
+        exchangeFbTokenMutation.mutate(response.authResponse.code);
+      } else {
+        console.log('User cancelled login or did not fully authorize.');
+      }
+    }, {
+      config_id: '1065602436058629',
+      response_type: 'code',
+      override_default_response_type: true
+    });
+  };
 
   useEffect(() => {
     if (bspConfig) {
@@ -634,76 +743,99 @@ const WhatsAppSettings = ({ tenantId, session }: { tenantId: string, session: an
             ))}
           </select>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block font-bold mb-2 text-theme-text text-sm">WABA ID</label>
-            <input 
-              type="text" 
-              required
-              value={bspForm.waba_id}
-              onChange={e => setBspForm({...bspForm, waba_id: e.target.value})}
-              placeholder="e.g. 10934892837" 
-              className="w-full p-4 border border-theme-border bg-theme-surface text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold mb-2 text-theme-text text-sm">Phone Number ID</label>
-            <input 
-              type="text" 
-              required
-              value={bspForm.phone_id}
-              onChange={e => setBspForm({...bspForm, phone_id: e.target.value})}
-              placeholder="e.g. 10582930291" 
-              className="w-full p-4 border border-theme-border bg-theme-surface text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <div>
-            <label className="block font-bold mb-2 text-theme-text text-sm">API Key / Access Token</label>
-            <input 
-              type="password" 
-              value={bspForm.api_key}
-              onChange={e => setBspForm({...bspForm, api_key: e.target.value})}
-              placeholder={bspConfig ? "••••••••••••••••••••••••" : "Paste your API key here"} 
-              className="w-full p-4 border border-theme-border bg-theme-surface text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
-            />
-            <p className="text-xs text-theme-text-muted mt-2 font-medium">
-              {bspConfig ? "Stored securely. Leave blank to keep current key." : "Required for initial setup."}
-            </p>
-          </div>
-          <div>
-            <label className="block font-bold mb-2 text-theme-text text-sm">Meta Commerce Catalog ID (Optional)</label>
-            <input 
-              type="text" 
-              value={bspForm.catalog_id}
-              onChange={e => setBspForm({...bspForm, catalog_id: e.target.value})}
-              placeholder="e.g. 94837264819" 
-              className="w-full p-4 border border-theme-border bg-theme-surface text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
-            />
-            <p className="text-xs text-theme-text-muted mt-2 font-medium">
-              Required to enable Native Commerce features (Subplan 5).
-            </p>
-          </div>
-        </div>
-        
-        {bspConfig?.webhook_verify_token && bspForm.provider !== 'meta' && (
-          <div className="bg-theme-bg p-6 border border-brand-accent/20 mt-6 bg-brand-accent/5" style={{ borderRadius: 'var(--radius-card)' }}>
-            <label className="block text-xs font-bold uppercase text-brand-accent mb-2 tracking-wide">Webhook Verify Token (Gupshup)</label>
-            <code className="text-theme-text font-mono text-lg break-all font-bold">{bspConfig.webhook_verify_token}</code>
-            <p className="text-sm text-theme-text-muted mt-3 font-medium">Copy this token into your Gupshup webhook configuration.</p>
-          </div>
-        )}
 
         {bspForm.provider === 'meta' && (
-          <div className="bg-theme-bg p-6 border border-blue-500/20 mt-6 bg-blue-500/5" style={{ borderRadius: 'var(--radius-card)' }}>
-            <label className="block text-xs font-bold uppercase text-blue-400 mb-2 tracking-wide">Meta Webhook Setup</label>
-            <p className="text-sm text-theme-text-muted font-medium">Meta Cloud API uses a single global Verify Token configured as the <code className="text-blue-400 font-mono">META_VERIFY_TOKEN</code> environment variable on your backend server. Do <strong>not</strong> use the per-tenant token shown here — ask your platform administrator for the correct value.</p>
+          <div className="bg-blue-500/10 border border-blue-500/20 p-6 rounded-lg text-center space-y-4 my-6">
+            <h3 className="font-bold text-theme-text text-lg">Connect in 1-Click</h3>
+            <p className="text-theme-text-muted text-sm max-w-md mx-auto">
+              Securely connect your WhatsApp Business Account using Facebook Login. We will automatically configure your tokens and webhooks.
+            </p>
+            <button
+              type="button"
+              onClick={handleFacebookLogin}
+              disabled={exchangeFbTokenMutation.isPending}
+              className="mx-auto flex items-center gap-2 bg-[#1877F2] hover:bg-[#1877F2]/90 text-white font-bold py-3 px-6 rounded shadow-md transition-all disabled:opacity-50"
+            >
+              {exchangeFbTokenMutation.isPending ? 'Connecting...' : 'Connect with Facebook'}
+            </button>
           </div>
         )}
+        
+        
+        <div className="pt-6 border-t border-theme-border">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-2 font-bold text-theme-text hover:text-brand-accent transition-colors mb-4 w-full text-left"
+          >
+            {showAdvanced ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+            Advanced / Manual Configuration
+          </button>
+          
+          {showAdvanced && (
+            <div className="space-y-6 mt-4 p-6 border border-theme-border rounded-lg bg-theme-surface">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block font-bold mb-2 text-theme-text text-sm">WABA ID</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={bspForm.waba_id}
+                    onChange={e => setBspForm({...bspForm, waba_id: e.target.value})}
+                    placeholder="e.g. 10934892837" 
+                    className="w-full p-4 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-2 text-theme-text text-sm">Phone Number ID</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={bspForm.phone_id}
+                    onChange={e => setBspForm({...bspForm, phone_id: e.target.value})}
+                    placeholder="e.g. 10582930291" 
+                    className="w-full p-4 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block font-bold mb-2 text-theme-text text-sm">API Key / Access Token</label>
+                  <input 
+                    type="password" 
+                    value={bspForm.api_key}
+                    onChange={e => setBspForm({...bspForm, api_key: e.target.value})}
+                    placeholder={bspConfig ? "••••••••••••••••••••••••" : "Paste your API key here"} 
+                    className="w-full p-4 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
+                  />
+                  <p className="text-xs text-theme-text-muted mt-2 font-medium">
+                    {bspConfig ? "Stored securely. Leave blank to keep current key." : "Required for initial setup."}
+                  </p>
+                </div>
+                <div>
+                  <label className="block font-bold mb-2 text-theme-text text-sm">Meta Commerce Catalog ID (Optional)</label>
+                  <input 
+                    type="text" 
+                    value={bspForm.catalog_id}
+                    onChange={e => setBspForm({...bspForm, catalog_id: e.target.value})}
+                    placeholder="e.g. 94837264819" 
+                    className="w-full p-4 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button font-mono text-sm transition-colors"
+                  />
+                  <p className="text-xs text-theme-text-muted mt-2 font-medium">
+                    Required to enable Native Commerce features (Subplan 5).
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-theme-bg p-6 border border-blue-500/20 bg-blue-500/5" style={{ borderRadius: 'var(--radius-card)' }}>
+                <label className="block text-xs font-bold uppercase text-blue-400 mb-2 tracking-wide">Meta Webhook Setup</label>
+                <p className="text-sm text-theme-text-muted font-medium">Meta Cloud API uses a single global Verify Token configured as the <code className="text-blue-400 font-mono">META_VERIFY_TOKEN</code> environment variable on your backend server. Do <strong>not</strong> use the per-tenant token shown here — ask your platform administrator for the correct value.</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="pt-6 mt-6 border-t border-theme-border">
           <button 

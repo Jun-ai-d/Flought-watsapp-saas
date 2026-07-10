@@ -1,5 +1,4 @@
 import { BSPProvider } from './BSPProvider';
-import { GupshupProvider } from './GupshupProvider';
 import { MetaProvider } from './MetaProvider';
 import { WidgetProvider } from './WidgetProvider';
 
@@ -14,9 +13,6 @@ export function getBSPProvider(providerName: string): BSPProvider {
 
   let provider: BSPProvider;
   switch (normalizedName) {
-    case 'gupshup':
-      provider = new GupshupProvider();
-      break;
     case 'meta':
       provider = new MetaProvider();
       break;

@@ -12,6 +12,23 @@ import { NormalizedInboundMessage } from '../bsp/BSPProvider';
 import { processAutomationPipeline } from './automation/pipeline';
 import { transcribeAudio } from './llm/stt';
 import { fireOutboundWebhook } from './webhookService';
+import { z } from 'zod';
+import { parsePhoneNumberWithError } from 'libphonenumber-js';
+
+const messageContentSchema = z.string().max(4096, "Message too long").transform((str) => {
+  return str.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+});
+
+function formatE164(phone: string): string {
+  try {
+    // Default to US if no country code provided, though BSPs usually provide +
+    const phoneNumber = parsePhoneNumberWithError(phone, 'US'); 
+    return phoneNumber.format('E.164');
+  } catch (e) {
+    const cleaned = phone.replace(/\D/g, '');
+    return cleaned ? `+${cleaned}` : phone;
+  }
+}
 
 /**
  * Parses the raw payload from the BSP and routes it to the specific tenant processing pipeline.
@@ -46,6 +63,15 @@ export async function handleInboundWebhook(providerName: string, headers: any, p
 async function processSingleMessage(msg: NormalizedInboundMessage, providerName: string) {
   let messageContent = msg.text || '';
   let transcript = '';
+
+  try {
+    messageContent = messageContentSchema.parse(messageContent);
+  } catch (e) {
+    console.warn(`[Sanitization] Message exceeded limits: ${e}`);
+    messageContent = messageContent.substring(0, 4096).replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  }
+
+  msg.fromPhone = formatE164(msg.fromPhone);
 
   let accessToken: string | undefined;
   if (msg.type === 'audio' && msg.mediaUrl && providerName === 'meta') {
@@ -125,9 +151,18 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   // PRD CRITICAL RULE 1: A bot MUST NEVER send an automated message while a conversation is in human handover state.
   
   if (messageContent && currentStatus === 'bot') {
-    // If it's a text/audio message and the bot is active, route to the AI generator
-    processAutomationPipeline(tenantId, conversationId, messageContent, msg.fromPhone, providerName, result.is_new_session).catch(e => {
-      console.error('Error in automation pipeline:', e);
+    // If it's a text/audio message and the bot is active, route to the debounce queue
+    import('./jobQueue').then(({ enqueueDebouncedMessage }) => {
+      enqueueDebouncedMessage(tenantId, conversationId, messageContent, msg.fromPhone, providerName, result.is_new_session);
+    }).catch(e => {
+      console.error('Error importing jobQueue for debouncing:', e);
+    });
+  } else if (!messageContent && currentStatus === 'bot') {
+    // If the message has no text (e.g., sticker, location, contact card), the bot cannot process it.
+    // We explicitly hand it over to a human rather than failing silently.
+    console.log(`[Handover] Unsupported media type from ${msg.fromPhone}. Triggering handover.`);
+    import('./automation/handover').then(({ triggerHandover }) => {
+      triggerHandover(tenantId, conversationId, 'unsupported_media_type', 'Customer sent an unsupported attachment or location.', 'Customer sent an attachment.');
     });
   } else if (currentStatus !== 'bot') {
     // If the conversation is 'handover_pending' or 'handover_active', the bot is completely silenced.

@@ -7,7 +7,6 @@
  */
 export const BSP_PROVIDERS = [
   { value: 'meta', label: 'Meta Cloud API' },
-  { value: 'gupshup', label: 'Gupshup' },
 ] as const;
 
 export const DEFAULT_BSP_PROVIDER = 'meta';

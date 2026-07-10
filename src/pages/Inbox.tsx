@@ -148,12 +148,19 @@ const Inbox: React.FC = () => {
         .eq('status', 'handover_pending')
         .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('This conversation was already claimed by another agent or is no longer pending.');
+      }
       return data[0];
     },
     onSuccess: (updatedConv) => {
       queryClient.setQueryData(['conversations', tenant?.id], (old: any[] = []) => 
         old.map(c => c.id === updatedConv.id ? updatedConv : c)
       );
+    },
+    onError: (err) => {
+      alert(err.message);
+      queryClient.invalidateQueries({ queryKey: ['conversations', tenant?.id] });
     }
   });
 
@@ -177,25 +184,21 @@ const Inbox: React.FC = () => {
 
   const resolveMutation = useMutation<any, Error, string>({
     mutationFn: async (convId: string) => {
-      const { data, error } = await (supabase
-        .from('conversations') as any)
-        .update({ status: 'resolved' })
-        .eq('id', convId)
-        .select();
-      if (error) throw error;
-      
-      // Async extract topic
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      fetch(`${apiUrl}/api/topics/extract`, {
+      const res = await fetch(`${apiUrl}/api/tenant/conversations/${convId}/resolve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session!.access_token}`
-        },
-        body: JSON.stringify({ conversationId: convId })
-      }).catch(console.error);
-
-      return data[0];
+          'Authorization': `Bearer ${session!.access_token}`,
+          'x-tenant-id': tenant!.id
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to resolve conversation');
+      }
+      
+      return res.json();
     },
     onSuccess: (updatedConv) => {
       queryClient.setQueryData(['conversations', tenant?.id], (old: any[] = []) => 
@@ -206,7 +209,7 @@ const Inbox: React.FC = () => {
   });
 
   const sendReplyMutation = useMutation({
-    mutationFn: async ({ text, isInternal }: { text: string, isInternal: boolean }) => {
+    mutationFn: async ({ text, isInternal, expectedVersion }: { text: string, isInternal: boolean, expectedVersion: number }) => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
       const res = await fetch(`${apiUrl}/api/outbound/send`, {
         method: 'POST',
@@ -218,13 +221,17 @@ const Inbox: React.FC = () => {
           tenantId: tenant!.id,
           conversationId: selectedId,
           text,
-          isInternal
+          isInternal,
+          expectedVersion
         })
       });
+      if (res.status === 409) {
+         throw new Error('Conflict: Conversation was modified by another agent or AI. Please refresh.');
+      }
       if (!res.ok) throw new Error('Failed to send message');
       return res.json();
     },
-    onMutate: async ({ text, isInternal }) => {
+    onMutate: async ({ text, isInternal, expectedVersion }) => {
       await queryClient.cancelQueries({ queryKey: ['messages', selectedId] });
       const previousMessages = queryClient.getQueryData(['messages', selectedId]);
       
@@ -379,11 +386,17 @@ const Inbox: React.FC = () => {
 
   const [isInternal, setIsInternal] = useState(false);
 
+  const lastCustomerMessage = messages.slice().reverse().find(m => m.direction === 'inbound');
+  const hoursSinceLastCustomerMessage = lastCustomerMessage 
+    ? (Date.now() - new Date(lastCustomerMessage.created_at).getTime()) / (1000 * 60 * 60)
+    : 0;
+  const isOutside24hWindow = hoursSinceLastCustomerMessage > 24;
+
   const handleSendReply = useCallback(() => {
-    if (selectedId && replyText.trim()) {
-      sendReplyMutation.mutate({ text: replyText, isInternal });
+    if (selectedId && replyText.trim() && selectedConv) {
+      sendReplyMutation.mutate({ text: replyText, isInternal, expectedVersion: selectedConv.version || 0 });
     }
-  }, [selectedId, replyText, isInternal, sendReplyMutation]);
+  }, [selectedId, replyText, isInternal, sendReplyMutation, selectedConv]);
 
   // 3. Supabase Realtime Subscriptions & Presence
   useEffect(() => {
@@ -773,7 +786,7 @@ const Inbox: React.FC = () => {
                     "w-full p-2 text-sm md:p-3 md:text-base border bg-theme-bg text-theme-text focus:outline-none resize-none h-14 md:h-24 transition-colors disabled:opacity-50 theme-button",
                     isInternal ? "bg-yellow-500/10 border-yellow-500/50 focus:border-yellow-500 placeholder:text-yellow-500/50" : "border-theme-border focus:border-brand-accent"
                   )}
-                  disabled={selectedConv.status === 'resolved' || selectedConv.status === 'handover_pending' || selectedConv.status === 'bot'}
+                  disabled={selectedConv.status === 'resolved' || selectedConv.status === 'handover_pending' || selectedConv.status === 'bot' || (!isInternal && isOutside24hWindow)}
                   value={replyText}
                   onChange={(e) => {
                     let val = e.target.value;
@@ -791,6 +804,11 @@ const Inbox: React.FC = () => {
                     setReplyText(val);
                   }}
                 ></textarea>
+                {!isInternal && isOutside24hWindow && (
+                  <div className="text-xs text-red-500 font-medium px-1 flex items-center gap-1 mt-1">
+                    <AlertCircle size={12} /> The 24-hour customer service window has closed. You must use a Template to message this customer.
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
                     <button 

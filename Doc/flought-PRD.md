@@ -47,8 +47,11 @@ A tenant may have **zero Agents** (solo owner) — the Admin is then the only cl
 - Support both **new dedicated number** and **existing-number migration** paths (migration carries real tradeoffs — chat history loss, brief downtime — disclosed per the script in `flought-bsp-migration-runbook.md` §6, which must be a required, logged step, not assumed).
 
 ### 4.2 Conversational automation
+- **Adaptive Agent Routing** — fast intent classification (conversational, knowledge, actionable) to skip expensive AI pipelines for simple messages, and automatically rewrite contextual queries based on chat history.
+- **Semantic Caching** — instantly returns cached answers for highly similar questions to save 100% of LLM costs and provide sub-50ms latency.
+- **Auto-FAQ Mining (Self-Learning RAG)** — nightly clustering of chat logs to automatically generate and save FAQs for questions asked 3+ times, permanently reducing future RAG costs without human intervention.
 - **FAQ matching** — keyword/intent match against a tenant-curated FAQ set (target: 15–30 FAQs per tenant at onboarding).
-- **RAG fallback** — for queries the FAQ set can't answer, retrieve from tenant-uploaded knowledge base documents (price lists, service menus, policy docs) and generate a grounded response.
+- **Hybrid RAG fallback (Vector + BM25)** — for queries the FAQ set can't answer, retrieve from tenant-uploaded knowledge base documents using Small-to-Big Sentence Windowing to generate a concise, grounded response.
 - **Voice-note handling** — transcribe inbound audio via STT before running it through the same FAQ/RAG pipeline. This is an explicit differentiator against horizontal competitors that don't handle voice at all — do not treat this as optional/v2.
 - **Hard compliance scoping** — every bot is configured to answer only within its tenant's specific business domain (Meta's Jan 2026 policy bans general-purpose assistants on WhatsApp Business). This is enforced at the system-prompt level per tenant, not a generic template applied unchanged. See `flought-compliance-checklist.md` §1.
 

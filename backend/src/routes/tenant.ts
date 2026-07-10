@@ -230,6 +230,97 @@ router.post('/developer/rotate-key', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/tenant/conversations/:id/resolve
+ * Manually resolve a conversation and generate its summary
+ */
+router.post('/conversations/:id/resolve', async (req: Request, res: Response) => {
+  const tenantId = req.headers['x-tenant-id'] as string;
+  const conversationId = req.params.id;
+  
+  if (!tenantId || !conversationId) {
+    return res.status(400).json({ error: 'Missing tenantId or conversationId' });
+  }
+
+  try {
+    // 1. Update DB to resolved
+    const { data: conv, error: updateError } = await supabaseAdmin
+      .from('conversations')
+      .update({ 
+        status: 'resolved',
+        resolved_at: new Date().toISOString()
+      })
+      .eq('id', conversationId)
+      .eq('tenant_id', tenantId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // 2. Extract Topic (Existing background logic)
+    const apiUrl = process.env.VITE_API_URL || 'http://localhost:4000';
+    fetch(`${apiUrl}/api/topics/extract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization || ''
+      },
+      body: JSON.stringify({ conversationId })
+    }).catch(console.error);
+
+    // 3. Generate Summary & Append to Contact History
+    const { generateConversationSummary } = require('../services/llm/generator');
+    const { data: history } = await supabaseAdmin
+      .from('messages')
+      .select('direction, content')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (history && history.length > 0) {
+      const formattedHistory = history.reverse().map((h: any) => ({
+        direction: h.direction as 'inbound' | 'outbound',
+        content: h.content
+      }));
+      
+      const summary = await generateConversationSummary(formattedHistory);
+      
+      if (summary && conv.customer_phone) {
+        const historyEntry = {
+          timestamp: new Date().toISOString(),
+          summary: summary
+        };
+        
+        // Use RPC or raw SQL to append to JSONB array. 
+        // We can do it by fetching the current array, appending, and updating.
+        const { data: contact } = await supabaseAdmin
+          .from('contacts')
+          .select('interaction_history')
+          .eq('tenant_id', tenantId)
+          .eq('phone_number', conv.customer_phone)
+          .single();
+          
+        if (contact) {
+          const newHistory = [...(contact.interaction_history || []), historyEntry];
+          // Limit to last 10 entries to save tokens
+          const trimmedHistory = newHistory.slice(-10);
+          
+          await supabaseAdmin
+            .from('contacts')
+            .update({ interaction_history: trimmedHistory })
+            .eq('tenant_id', tenantId)
+            .eq('phone_number', conv.customer_phone);
+        }
+      }
+    }
+
+    res.json(conv);
+  } catch (error: any) {
+    console.error('Error resolving conversation:', error);
+    res.status(500).json({ error: 'Failed to resolve conversation' });
+  }
+});
+
+/**
  * GET /api/tenant/integrations/shopify
  */
 router.get('/integrations/shopify', async (req: Request, res: Response) => {
@@ -281,6 +372,107 @@ router.post('/integrations/shopify', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error saving Shopify settings:', error);
     res.status(500).json({ error: 'Failed to save Shopify settings' });
+  }
+});
+
+/**
+ * POST /api/tenant/integrations/meta/oauth
+ * Exchanges short-lived Facebook token for a long-lived one and fetches WABA details.
+ */
+router.post('/integrations/meta/oauth', async (req: Request, res: Response) => {
+  const tenantId = req.headers['x-tenant-id'] as string;
+  const { access_token } = req.body; // Actually passing 'code' here now, but variable is named access_token from frontend
+
+  if (!access_token) {
+    return res.status(400).json({ error: 'Missing code' });
+  }
+
+  const metaAppId = process.env.META_APP_ID;
+  const metaAppSecret = process.env.META_APP_SECRET;
+
+  if (!metaAppId || !metaAppSecret) {
+    return res.status(500).json({ error: 'Server missing Meta App credentials' });
+  }
+
+  try {
+    // 1. Exchange authorization code for access token
+    // For codes obtained via the JS SDK, redirect_uri must be empty string
+    const exchangeUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${metaAppId}&client_secret=${metaAppSecret}&code=${access_token}&redirect_uri=`;
+    const exchangeRes = await fetch(exchangeUrl);
+    const exchangeData = await exchangeRes.json();
+    
+    if (exchangeData.error) {
+      console.error('Meta Token Exchange Error:', exchangeData.error);
+      return res.status(400).json({ error: exchangeData.error.message });
+    }
+
+    const longLivedToken = exchangeData.access_token;
+
+    // 2. Fetch User's Businesses
+    let wabaId = null;
+    let phoneId = null;
+    
+    try {
+      const bizRes = await fetch(`https://graph.facebook.com/v21.0/me/businesses?access_token=${longLivedToken}`);
+      const bizData = await bizRes.json();
+      
+      const bizId = bizData.data?.[0]?.id;
+      
+      if (bizId) {
+        // Fetch WABAs owned by this business
+        const wabaRes = await fetch(`https://graph.facebook.com/v21.0/${bizId}/owned_whatsapp_business_accounts?access_token=${longLivedToken}`);
+        const wabaData = await wabaRes.json();
+        wabaId = wabaData.data?.[0]?.id;
+        
+        if (wabaId) {
+          // Fetch Phone Numbers for this WABA
+          const phoneRes = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${longLivedToken}`);
+          const phoneData = await phoneRes.json();
+          phoneId = phoneData.data?.[0]?.id;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not auto-fetch WABA details, falling back to empty fields', e);
+    }
+
+    // 3. Save to database
+    const encryptedApiKey = encryptToken(longLivedToken);
+
+    const { data: existing } = await supabaseAdmin
+      .from('tenant_bsp_config')
+      .select('webhook_verify_token, waba_id, phone_number_id')
+      .eq('tenant_id', tenantId)
+      .single();
+
+    const webhookVerifyToken = existing?.webhook_verify_token || `wh-${tenantId}-${Date.now()}`;
+    
+    const updateData: any = {
+      tenant_id: tenantId,
+      bsp_provider: 'meta',
+      access_token_encrypted: encryptedApiKey,
+      webhook_verify_token: webhookVerifyToken,
+      is_active: true
+    };
+    
+    // Only overwrite WABA/Phone ID if we successfully fetched them, otherwise keep existing
+    if (wabaId) updateData.waba_id = wabaId;
+    if (phoneId) updateData.phone_number_id = phoneId;
+
+    const { error: upsertError } = await supabaseAdmin
+      .from('tenant_bsp_config')
+      .upsert(updateData, { onConflict: 'tenant_id' });
+
+    if (upsertError) throw upsertError;
+
+    // Invalidate cache
+    const { appCache } = require('../lib/cache');
+    appCache.delete(`bsp_config_${tenantId}`);
+
+    res.json({ success: true, waba_id: wabaId, phone_number_id: phoneId });
+
+  } catch (error: any) {
+    console.error('Error during Meta OAuth:', error);
+    res.status(500).json({ error: 'Failed to complete Meta integration' });
   }
 });
 

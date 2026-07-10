@@ -30,13 +30,11 @@ export async function retrieveRelevantChunks(tenantId: string, query: string, to
     // Convert the Javascript array to a Postgres vector string format
     const embeddingString = `[${queryEmbedding.join(',')}]`;
 
-    // 2. Offload the cosine similarity math to Postgres using `pgvector`.
-    // Why? Doing vector math in Node.js on thousands of rows causes massive memory bloat.
-    // The `match_knowledge_chunks` RPC function uses the `<=>` operator directly at the data layer.
+    // 2. Offload the hybrid search math to Postgres using `pgvector` + `BM25`.
     const { data: chunks, error } = await supabaseAdmin
-      .rpc('match_knowledge_chunks', {
+      .rpc('match_knowledge_hybrid', {
+        query_text: query,
         query_embedding: embeddingString,
-        match_threshold: minSimilarity,
         match_count: topK,
         p_tenant_id: tenantId // Strictly scopes the search to the correct tenant (Security)
       });
@@ -50,7 +48,7 @@ export async function retrieveRelevantChunks(tenantId: string, query: string, to
     
     return chunks.map((chunk: any) => ({
       id: chunk.id,
-      content: chunk.content,
+      content: chunk.context_window || chunk.content, // Small-to-Big Retrieval
       similarity: chunk.similarity
     }));
 

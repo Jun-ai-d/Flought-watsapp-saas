@@ -217,6 +217,16 @@ export class MetaProvider implements BSPProvider {
 
                 if (type === 'text') {
                   textContent = msg.text?.body;
+                } else if (type === 'interactive') {
+                  // Extract payload from WhatsApp interactive messages (buttons/lists)
+                  const interactive = msg.interactive;
+                  if (interactive?.type === 'button_reply') {
+                    textContent = interactive.button_reply?.title || interactive.button_reply?.id || '';
+                  } else if (interactive?.type === 'list_reply') {
+                    textContent = interactive.list_reply?.title || interactive.list_reply?.id || '';
+                  } else {
+                    textContent = '';
+                  }
                 } else if (['audio', 'image', 'document', 'video'].includes(type)) {
                   // Media messages usually give an ID that we have to fetch the URL for. 
                   mediaUrlContent = msg[type]?.id;

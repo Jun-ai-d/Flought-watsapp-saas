@@ -10,6 +10,10 @@ import { getBSPProvider } from '../../bsp/providerFactory';
 import { ProviderConfig } from '../../bsp/BSPProvider';
 import { appCache } from '../../lib/cache';
 
+// In-memory lock to prevent race conditions when a user sends rapid-fire messages.
+// This ensures that concurrent webhooks for the same conversation are processed sequentially.
+const conversationLocks = new Map<string, Promise<void>>();
+
 /**
  * Note 1: The Automation Pipeline
  * This is the central brain of the bot. Every inbound message that is not actively 
@@ -33,6 +37,17 @@ export async function processAutomationPipeline(
   providerName: string,
   isNewSession: boolean = false
 ) {
+  // Concurrency Lock: Chain execution for the same conversation to prevent double-replies
+  const previousLock = conversationLocks.get(conversationId);
+  let releaseLock: () => void = () => {};
+  const currentLock = new Promise<void>((resolve) => { releaseLock = resolve; });
+  conversationLocks.set(conversationId, currentLock);
+
+  if (previousLock) {
+    console.log(`[Pipeline] Rapid-fire detected for ${conversationId}. Waiting for previous pipeline to finish...`);
+    try { await previousLock; } catch (e) {}
+  }
+
   console.log(`[Pipeline] Starting for conv ${conversationId}`);
 
   try {
@@ -51,12 +66,10 @@ export async function processAutomationPipeline(
 
     /**
      * Note 3: Quota Enforcement (Gate 1.5)
-     * Since this is a multi-tenant SaaS, we must ensure the business hasn't exceeded their 
-     * plan's limits. We use a Supabase RPC (Remote Procedure Call) here.
-     * RPCs are excellent because they allow us to execute complex aggregation logic 
-     * entirely inside Postgres, rather than pulling rows into Node.js to count them.
+     * We atomically reserve a message slot. If the pipeline fails or hands over without sending 
+     * an automated message, we refund it.
      */
-    const { data: hasQuota, error: quotaError } = await supabaseAdmin.rpc('check_tenant_quota', {
+    const { data: hasQuota, error: quotaError } = await supabaseAdmin.rpc('reserve_tenant_quota', {
       p_tenant_id: tenantId
     });
     
@@ -97,27 +110,50 @@ export async function processAutomationPipeline(
     }
 
     /**
-     * Note 6: Concurrent Data Fetching for LLM context
-     * If all fast deterministic gates fail, we prepare for a slow Generative AI call.
-     * The AI needs three things to respond intelligently:
-     * 1. RAG context (semantic search against uploaded docs via pgvector)
-     * 2. Tenant profile info (e.g., business name)
-     * 3. Conversation history (the last 6 messages for short-term memory)
-     * 
-     * We use `Promise.all` to fetch all three over the network simultaneously. 
-     * This is a crucial Node.js performance pattern that cuts latency by ~60% compared 
-     * to awaiting them sequentially.
+     * Note 6: Context & Semantic Cache Fetching
+     * We first fetch the history to inform the Agent Router.
      */
-    const [chunks, { data: tenant }, { data: history }] = await Promise.all([
-      retrieveRelevantChunks(tenantId, messageText),
-      supabaseAdmin.from('tenants').select('business_name, ai_settings').eq('id', tenantId).single(),
-      supabaseAdmin
-        .from('messages')
-        .select('direction, content')
-        .eq('conversation_id', conversationId)
-        // We order by descending so we get the 6 most recent, then reverse them later.
-        .order('created_at', { ascending: false })
-        .limit(6)
+    const { data: history } = await supabaseAdmin
+      .from('messages')
+      .select('direction, content')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(6);
+      
+    // The LLM needs the history in chronological order (oldest to newest)
+    const formattedHistory = (history || []).reverse().map(h => ({
+      direction: h.direction as 'inbound' | 'outbound',
+      content: h.content
+    }));
+
+    // Adaptive Agent Router
+    const { routeMessageIntent } = await import('./agentRouter');
+    const intent = await routeMessageIntent(messageText, formattedHistory);
+    console.log(`[Pipeline] Router classified as: ${intent.categories.join(', ')} (Rewritten: ${intent.rewrittenQuery})`);
+
+    // Semantic Cache Check (using English Translation)
+    const { checkSemanticCache } = await import('../kb/semanticCache');
+    const cacheQuery = intent.englishTranslation || intent.rewrittenQuery || messageText;
+    const cachedResponse = await checkSemanticCache(tenantId, cacheQuery);
+    if (cachedResponse) {
+      console.log(`[Pipeline] Semantic Cache Hit! Saving LLM tokens.`);
+      await sendBotReply(tenantId, conversationId, customerPhone, providerName, cachedResponse, 'rag');
+      return;
+    }
+
+    if (intent.categories.includes('actionable')) {
+      // In Phase 2 this will trigger DB/Tool calling. For now we handover.
+      await triggerHandover(tenantId, conversationId, 'action_required', messageText, 'Customer requested an actionable task.');
+      return;
+    }
+
+    // Concurrent Data Fetching
+    const isKnowledge = intent.categories.includes('knowledge');
+    const searchString = intent.normalizedKeywords?.length ? intent.normalizedKeywords.join(' ') : (intent.rewrittenQuery || messageText);
+    
+    const [chunks, { data: tenant }] = await Promise.all([
+      !isKnowledge ? Promise.resolve([]) : retrieveRelevantChunks(tenantId, searchString),
+      supabaseAdmin.from('tenants').select('business_name, ai_settings').eq('id', tenantId).single()
     ]);
 
     interface AISettings {
@@ -140,25 +176,26 @@ export async function processAutomationPipeline(
     }
 
     /**
-     * Note 7: Safe Fallback for Empty Knowledge Bases
-     * If the `retrieveRelevantChunks` function returns an empty array, it means either:
-     * a) The tenant hasn't uploaded any documents.
-     * b) The user's question was completely off-topic and matched nothing in the vector DB.
-     * 
-     * We NEVER want the LLM to guess (hallucinate) the answer, so we strictly 
-     * hand over to a human instead.
+     * Note 7: Generative LLM Execution
+     * The context is gathered, so we invoke the language model.
      */
-    if (chunks.length === 0) {
-      console.log(`[Pipeline] No RAG chunks found.`);
+    let previousSummary: string | undefined;
+    if (isNewSession) {
+      const { data: contact } = await supabaseAdmin
+        .from('contacts')
+        .select('interaction_history')
+        .eq('tenant_id', tenantId)
+        .eq('phone_number', customerPhone)
+        .single();
       
-      // We format the history so the human agent can read it quickly in the dashboard.
-      const formattedHistoryText = (history || []).reverse().map(h => 
-        h.direction === 'inbound' ? `Customer: ${h.content}` : `Bot: ${h.content}`
-      ).join('\n');
-
-      // Trigger handover per Technical Requirements Document (TRD) §3.2
-      await triggerHandover(tenantId, conversationId, 'low_confidence_retrieval', messageText, formattedHistoryText);
-      return;
+      if (contact && contact.interaction_history && contact.interaction_history.length > 0) {
+        // Format the history array into a bulleted list for the AI
+        previousSummary = contact.interaction_history
+          .map((item: any, i: number) => `[${new Date(item.timestamp).toLocaleDateString()}] ${item.summary}`)
+          .join('\n');
+          
+        console.log(`[Pipeline] Injected full interaction history (${contact.interaction_history.length} sessions).`);
+      }
     }
 
     /**
@@ -168,16 +205,10 @@ export async function processAutomationPipeline(
      */
     const businessName = tenant?.business_name || 'this business';
     
-    // The LLM needs the history in chronological order (oldest to newest), 
-    // so we reverse the array we got back from Postgres.
-    const formattedHistory = (history || []).reverse().map(h => ({
-      direction: h.direction as 'inbound' | 'outbound',
-      content: h.content
-    }));
-
+    // formattedHistory was computed earlier for the router
     const systemPromptOverride = aiSettings?.system_prompt;
 
-    const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory, systemPromptOverride);
+    const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory, systemPromptOverride, previousSummary);
 
     /**
      * Note 9: Non-blocking Analytics Tracking
@@ -202,19 +233,35 @@ export async function processAutomationPipeline(
       ).join('\n');
       
       await triggerHandover(tenantId, conversationId, 'low_confidence_generation', messageText, formattedHistoryText);
+      try { await supabaseAdmin.rpc('refund_tenant_quota', { p_tenant_id: tenantId }); } catch(e){}
       return;
     }
 
     // If everything went perfectly, we dispatch the highly-confident AI response.
     console.log(`[Pipeline] LLM generated high confidence response.`);
     await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id));
+    
+    // Cache the highly confident RAG response
+    if (intent.categories.includes('knowledge')) {
+      const { setSemanticCache } = await import('../kb/semanticCache');
+      const cacheQuery = intent.englishTranslation || intent.rewrittenQuery || messageText;
+      await setSemanticCache(tenantId, cacheQuery, llmResponse.content);
+    }
   } catch (error) {
     console.error(`[Pipeline] CRITICAL ERROR for conv ${conversationId}:`, error);
+    try { await supabaseAdmin.rpc('refund_tenant_quota', { p_tenant_id: tenantId }); } catch(e){}
     // Fallback to human handover so the message is not lost silently
     try {
       await triggerHandover(tenantId, conversationId, 'pipeline_error', messageText, `System Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } catch (handoverError) {
       console.error(`[Pipeline] Failed to trigger fallback handover for conv ${conversationId}:`, handoverError);
+    }
+  } finally {
+    // Release the lock for the next message in the queue
+    releaseLock();
+    // Clean up memory if this is the last lock in the chain
+    if (conversationLocks.get(conversationId) === currentLock) {
+      conversationLocks.delete(conversationId);
     }
   }
 }
@@ -279,6 +326,7 @@ async function sendBotReply(
     const hoursSinceLastMessage = (Date.now() - new Date(latestInbound.created_at).getTime()) / (1000 * 60 * 60);
     if (hoursSinceLastMessage > 24) {
       console.warn(`[Pipeline] Aborting bot reply. Customer hasn't messaged in >24 hours (strict WhatsApp policy).`);
+      try { await supabaseAdmin.rpc('refund_tenant_quota', { p_tenant_id: tenantId }); } catch(e){}
       return; // Do not attempt to send; Meta will reject it anyway.
     }
   }
@@ -309,8 +357,8 @@ async function sendBotReply(
     providerConfig: decryptedConfig || {} 
   });
   
-  // Track message usage asynchronously
-  try { await supabaseAdmin.rpc('increment_usage', { p_tenant_id: tenantId, p_messages_sent: 1 }); } catch (e) { console.error(e); }
+  // Note: p_messages_sent is no longer incremented here because it was atomically reserved 
+  // via reserve_tenant_quota earlier in the pipeline.
 
   /**
    * Note 16: Audit Logging
