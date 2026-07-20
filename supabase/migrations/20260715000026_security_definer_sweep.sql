@@ -7,11 +7,10 @@ ALTER FUNCTION public.process_inbound_message(text, text, text, text, text, text
 -- 2. increment_usage
 ALTER FUNCTION public.increment_usage(uuid, integer, integer, numeric) SET search_path = '';
 
--- 3. handle_new_user_provisioning (Trigger function)
-ALTER FUNCTION public.handle_new_user_provisioning() SET search_path = '';
+-- 3. handle_new_user (Trigger function)
+ALTER FUNCTION public.handle_new_user() SET search_path = '';
 
--- 4. handle_new_user_confirmation (Trigger function)
-ALTER FUNCTION public.handle_new_user_confirmation() SET search_path = '';
+
 
 -- 5. check_tenant_quota
 ALTER FUNCTION public.check_tenant_quota(uuid) SET search_path = '';

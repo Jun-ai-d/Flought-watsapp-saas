@@ -9,7 +9,7 @@ CREATE INDEX IF NOT EXISTS idx_drip_enrollments_campaign ON drip_enrollments(cam
 CREATE INDEX IF NOT EXISTS idx_knowledge_documents_uploaded_by ON knowledge_documents(uploaded_by);
 
 -- Missing indexes on audit logs
-CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_user_id);
 
 -- Missing index on conversations
 CREATE INDEX IF NOT EXISTS idx_conversations_agent ON conversations(assigned_agent_id);
