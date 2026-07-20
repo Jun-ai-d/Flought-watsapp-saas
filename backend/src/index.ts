@@ -13,6 +13,12 @@ import topicsRoutes from './routes/topics';
 import v1Routes from './routes/v1';
 import integrationsRouter from './routes/integrations';
 import widgetRouter from './routes/widget';
+import marketingRouter from './routes/marketing';
+import shopifyRouter from './routes/shopify';
+import crmRouter from './routes/crm';
+import notesRouter from './routes/notes';
+import growthRouter from './routes/growth';
+import analyticsRouter from './routes/analytics';
 
 import rateLimit from 'express-rate-limit';
 import { traceMiddleware } from './middleware/traceMiddleware';
@@ -87,6 +93,12 @@ app.use('/api/topics', topicsRoutes);
 app.use('/api/v1', v1Routes);
 app.use('/api/integrations', integrationsRouter);
 app.use('/api/widget', widgetRouter);
+app.use('/api/marketing', marketingRouter);
+app.use('/api/shopify', shopifyRouter);
+app.use('/api/crm', crmRouter);
+app.use('/api/notes', notesRouter);
+app.use('/api/growth', growthRouter);
+app.use('/api/analytics', analyticsRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -106,6 +118,10 @@ app.use((err: any, req: any, res: any, next: any) => {
 import { initJobQueue } from './services/jobQueue';
 import { initBroadcasterWorkers } from './services/broadcaster';
 import { initCampaignWorker } from './services/campaignWorker';
+import { initBroadcastWorkers } from './services/marketing/broadcastWorker';
+import { initCartRecoveryWorker } from './services/ecommerce/cartRecoveryWorker';
+import { initOrderSyncWorker } from './services/ecommerce/orderSyncWorker';
+import { initSLAWorker } from './services/automation/slaWorker';
 
 app.listen(PORT, async () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
@@ -114,6 +130,10 @@ app.listen(PORT, async () => {
     await initJobQueue();
     await initBroadcasterWorkers();
     await initCampaignWorker();
+    initBroadcastWorkers();
+    initCartRecoveryWorker();
+    initOrderSyncWorker();
+    initSLAWorker();
   } catch (error) {
     console.error('Failed to initialize background job workers', { error });
   }

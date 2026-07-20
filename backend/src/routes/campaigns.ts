@@ -155,4 +155,23 @@ router.post('/:tenantId/:campaignId/enroll', requireTenantMember, async (req: Re
   }
 });
 
+// Get enrollments for a campaign
+router.get('/:tenantId/:campaignId/enrollments', requireTenantMember, async (req: Request, res: Response) => {
+  const tenantId = (req as any).tenantId;
+  const { campaignId } = req.params;
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('drip_enrollments')
+      .select('*')
+      .eq('campaign_id', campaignId);
+      
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error fetching enrollments:', { error, trace_id: req.traceId });
+    res.status(500).json({ error: 'Failed to fetch enrollments' });
+  }
+});
+
 export default router;

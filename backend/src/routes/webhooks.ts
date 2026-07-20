@@ -42,14 +42,15 @@ router.post('/meta', async (req, res) => {
       return res.status(401).send('Missing signature');
     }
 
-    // Quick acknowledge to Meta so it doesn't retry
-    res.status(200).send('EVENT_RECEIVED');
-
-    // Process asynchronously
+    // M-1 Fix: Await processing before acknowledging so Meta retries on DB failure
     await handleInboundWebhook('meta', headers, payload);
     
+    res.status(200).send('EVENT_RECEIVED');
   } catch (error: any) {
     console.error('Error processing Meta webhook:', { error, trace_id: req.traceId });
+    if (!res.headersSent) {
+      res.status(500).send('Internal Server Error');
+    }
   }
 });
 

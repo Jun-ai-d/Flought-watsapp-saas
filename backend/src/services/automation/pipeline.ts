@@ -272,7 +272,7 @@ export async function processAutomationPipeline(
  * This helper isolates the complex logic of actually routing a message out to WhatsApp.
  * It handles caching, security decryption, WhatsApp policy checks, and database logging.
  */
-async function sendBotReply(
+export async function sendBotReply(
   tenantId: string, 
   conversationId: string, 
   toPhone: string, 

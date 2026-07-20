@@ -1,0 +1,107 @@
+-- Migration: Restore contact upsert in process_inbound_message
+-- C-1 Fix: The 20260716000007 migration dropped the contacts upsert block.
+-- This restores it and also fixes the search_path security definer requirement.
+
+CREATE OR REPLACE FUNCTION process_inbound_message(
+  p_phone_number_id text,
+  p_customer_phone text,
+  p_customer_name text,
+  p_message_type text,
+  p_content text,
+  p_media_url text,
+  p_transcript text,
+  p_wa_message_id text,
+  p_timestamp timestamptz
+) RETURNS json AS $$
+DECLARE
+  v_tenant_id uuid;
+  v_conversation_id uuid;
+  v_conv_status text;
+  v_message_id uuid;
+  v_is_new_session boolean := false;
+BEGIN
+  -- 1. Identify Tenant (filter by is_active to prevent disabled configs from routing)
+  SELECT tenant_id INTO v_tenant_id
+  FROM public.tenant_bsp_config
+  WHERE (phone_number_id = p_phone_number_id OR waba_id = p_phone_number_id)
+    AND is_active = true
+  LIMIT 1;
+
+  IF v_tenant_id IS NULL THEN
+    RETURN json_build_object('status', 'error', 'reason', 'tenant_not_found');
+  END IF;
+
+  -- 2. Upsert Contact (Mini-CRM) — restored from 20260715000002
+  INSERT INTO public.contacts (tenant_id, phone_number, name, last_contacted_at)
+  VALUES (v_tenant_id, p_customer_phone, p_customer_name, p_timestamp)
+  ON CONFLICT (tenant_id, phone_number)
+  DO UPDATE SET
+    last_contacted_at = p_timestamp,
+    -- Only update name if the contact doesn't already have one
+    name = COALESCE(public.contacts.name, EXCLUDED.name);
+
+  -- 3. Find or Create Conversation
+  SELECT id, status INTO v_conversation_id, v_conv_status
+  FROM public.conversations
+  WHERE tenant_id = v_tenant_id AND customer_phone = p_customer_phone;
+
+  IF v_conversation_id IS NULL THEN
+    INSERT INTO public.conversations (
+      tenant_id, customer_phone, customer_name, status,
+      last_customer_message_at, last_message_at
+    )
+    VALUES (
+      v_tenant_id, p_customer_phone, COALESCE(p_customer_name, 'Customer'), 'bot',
+      p_timestamp, p_timestamp
+    )
+    RETURNING id, status INTO v_conversation_id, v_conv_status;
+
+    v_is_new_session := true;
+
+  ELSE
+    -- Wake up a resolved conversation when the customer messages again
+    IF v_conv_status = 'resolved' THEN
+      v_conv_status := 'bot';
+      v_is_new_session := true;
+    END IF;
+
+    UPDATE public.conversations
+    SET
+      last_customer_message_at = p_timestamp,
+      last_message_at = p_timestamp,
+      status = v_conv_status
+    WHERE id = v_conversation_id;
+  END IF;
+
+  -- 4. Insert Message (idempotent: handles duplicates safely via unique wa_message_id)
+  BEGIN
+    INSERT INTO public.messages (
+      conversation_id, tenant_id, direction, message_type,
+      content, media_url, transcript, wa_message_id, sender
+    )
+    VALUES (
+      v_conversation_id, v_tenant_id, 'inbound', p_message_type,
+      p_content, p_media_url, p_transcript, p_wa_message_id, 'customer'
+    )
+    RETURNING id INTO v_message_id;
+  EXCEPTION WHEN unique_violation THEN
+    RETURN json_build_object(
+      'status', 'duplicate',
+      'tenant_id', v_tenant_id,
+      'conversation_id', v_conversation_id,
+      'conv_status', v_conv_status,
+      'is_new_session', v_is_new_session
+    );
+  END;
+
+  -- 5. Return success with all required fields
+  RETURN json_build_object(
+    'status', 'success',
+    'tenant_id', v_tenant_id,
+    'conversation_id', v_conversation_id,
+    'conv_status', v_conv_status,
+    'message_id', v_message_id,
+    'is_new_session', v_is_new_session
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';

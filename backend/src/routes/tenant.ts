@@ -395,10 +395,18 @@ router.post('/integrations/meta/oauth', async (req: Request, res: Response) => {
   }
 
   try {
-    // 1. Exchange authorization code for access token
-    // For codes obtained via the JS SDK, redirect_uri must be empty string
-    const exchangeUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${metaAppId}&client_secret=${metaAppSecret}&code=${access_token}&redirect_uri=`;
-    const exchangeRes = await fetch(exchangeUrl);
+    // 1. Exchange authorization code for access token using POST to avoid secret exposure in URL
+    const exchangeUrl = `https://graph.facebook.com/v21.0/oauth/access_token`;
+    const exchangeRes = await fetch(exchangeUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: metaAppId,
+        client_secret: metaAppSecret,
+        code: access_token,
+        redirect_uri: ''
+      })
+    });
     const exchangeData = await exchangeRes.json();
     
     if (exchangeData.error) {

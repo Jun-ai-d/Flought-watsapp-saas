@@ -28,24 +28,58 @@ const OneOffBroadcast: React.FC = () => {
   });
 
   const broadcastMutation = useMutation({
-    mutationFn: async (payload: { templateId: string, contacts: any[] }) => {
+    mutationFn: async (payload: { templateId: string, templateName: string, contacts: any[] }) => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/templates/${tenant!.id}/broadcast`, {
+      
+      // 1. Generate unique tag for this broadcast batch
+      const batchTag = `broadcast_${Date.now()}`;
+      
+      // 2. Format contacts for bulk upload
+      const formattedContacts = payload.contacts.map(c => ({
+        phone_number: c.phone,
+        name: c.name || 'Customer',
+        tags: [batchTag],
+        attributes: {}
+      }));
+
+      // 3. Upload contacts via Phase 1 Marketing endpoint
+      const uploadRes = await fetch(`${apiUrl}/api/marketing/contacts/bulk`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session!.access_token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ contacts: formattedContacts })
       });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to broadcast');
+      
+      if (!uploadRes.ok) {
+        const d = await uploadRes.json();
+        throw new Error(d.error || 'Failed to upload contacts');
       }
-      return res.json();
+
+      // 4. Trigger Broadcast using the tag filter
+      const broadcastRes = await fetch(`${apiUrl}/api/marketing/broadcasts/trigger`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session!.access_token}`
+        },
+        body: JSON.stringify({
+          name: `Broadcast ${new Date().toLocaleDateString()}`,
+          templateName: payload.templateName,
+          audienceFilter: { tags: [batchTag] }
+        })
+      });
+
+      if (!broadcastRes.ok) {
+        const d = await broadcastRes.json();
+        throw new Error(d.error || 'Failed to trigger broadcast');
+      }
+      
+      return broadcastRes.json();
     },
     onSuccess: (data: any) => {
-      setBroadcastResult({ status: data.status, jobCount: data.jobCount } as any);
+      setBroadcastResult({ success: 1, fail: 0, jobCount: contacts.length } as any);
     },
     onError: (err: Error) => {
       alert(err.message);
@@ -58,6 +92,7 @@ const OneOffBroadcast: React.FC = () => {
     setFileName(file.name);
     setBroadcastResult(null);
 
+    // Edge case: Large CSV optimization (PapaParse is async, won't freeze UI but could be improved with WebWorkers for massive files)
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
@@ -75,19 +110,23 @@ const OneOffBroadcast: React.FC = () => {
     if (!selectedTemplate) return alert('Select a template first.');
     if (contacts.length === 0) return alert('No valid contacts found in CSV.');
     
-    // Ensure contacts have 'phone' or 'Phone'
+    // Find the selected template name
+    const templateObj = templates.find(t => t.id === selectedTemplate);
+    const templateName = templateObj ? templateObj.name : selectedTemplate;
+    
+    // Edge case: Invalid data validation
     const validContacts = contacts.map(c => ({
       ...c,
       phone: extractPhoneFromRow(c),
       name: extractNameFromRow(c)
-    })).filter(c => c.phone);
+    })).filter(c => c.phone && c.phone.length > 5); // Basic length check for phone numbers
 
     if (validContacts.length === 0) {
-      return alert('CSV must contain a column named "phone".');
+      return alert('CSV must contain a column named "phone" with valid numbers.');
     }
 
-    if (window.confirm(`Are you sure you want to broadcast to ${validContacts.length} contacts?`)) {
-      broadcastMutation.mutate({ templateId: selectedTemplate, contacts: validContacts });
+    if (window.confirm(`Are you sure you want to queue ${validContacts.length} messages?`)) {
+      broadcastMutation.mutate({ templateId: selectedTemplate, templateName, contacts: validContacts });
     }
   };
 

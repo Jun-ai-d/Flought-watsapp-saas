@@ -97,13 +97,50 @@ async function processEnrollment(enrollment: any) {
 
         console.log(`[Campaign Worker] Sending template ${template.name} to ${enrollment.contact_phone}`);
         
-        await provider.sendTemplateMessage({
+        const sendResult = await provider.sendTemplateMessage({
           tenantId,
           to: enrollment.contact_phone,
-          templateId: template.name, // The BSP adapter currently uses the name as the provider's template identifier
+          templateId: template.name,
           category: template.category as any || 'marketing',
           templateParams: [],
           providerConfig: decryptedConfig
+        });
+
+        // Find or create conversation for logging
+        let conversationId = null;
+        const { data: conv } = await supabaseAdmin
+          .from('conversations')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('customer_phone', enrollment.contact_phone)
+          .maybeSingle();
+          
+        if (conv) {
+          conversationId = conv.id;
+        } else {
+          const { data: newConv } = await supabaseAdmin
+            .from('conversations')
+            .insert({
+              tenant_id: tenantId,
+              customer_phone: enrollment.contact_phone,
+              customer_name: 'Contact',
+              status: 'bot',
+              last_message_at: new Date().toISOString()
+            })
+            .select('id')
+            .single();
+          if (newConv) conversationId = newConv.id;
+        }
+
+        // C-4 Fix: Log outbound message for audit and inbox visibility
+        await supabaseAdmin.from('messages').insert({
+          conversation_id: conversationId,
+          tenant_id: tenantId,
+          direction: 'outbound',
+          message_type: 'template',
+          content: `[Drip Campaign] Sent Template: ${template.name}`,
+          sender: 'bot',
+          wa_message_id: sendResult.bspMessageId
         });
       }
     }

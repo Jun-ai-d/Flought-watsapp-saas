@@ -14,7 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Save, Plus, MessageSquare, Zap } from 'lucide-react';
+import { Save, Plus, MessageSquare, Zap, SplitSquareHorizontal } from 'lucide-react';
 
 // --- Custom Nodes ---
 
@@ -60,9 +60,52 @@ const MessageNode = ({ data, isConnectable }: any) => {
   );
 };
 
+const ConditionNode = ({ data, isConnectable }: any) => {
+  return (
+    <div className="bg-theme-surface border-2 border-purple-500 rounded-lg shadow-lg w-[250px] overflow-hidden theme-button relative">
+      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
+      <div className="bg-purple-500 text-white px-3 py-2 text-sm font-bold flex items-center gap-2">
+        <SplitSquareHorizontal size={16} /> Condition (Branch)
+      </div>
+      <div className="p-4">
+        <label className="block text-xs font-bold text-theme-text-muted mb-1">Variable to check:</label>
+        <select 
+          className="w-full bg-theme-bg border border-theme-border text-theme-text p-2 text-sm focus:outline-none focus:border-purple-500 theme-button mb-3"
+          value={data.variable || 'message_body'}
+          onChange={(e) => data.onChange(data.id, 'variable', e.target.value)}
+        >
+          <option value="message_body">Message Body</option>
+          <option value="customer_tag">Customer Tag</option>
+          <option value="business_hours">Is Business Hours</option>
+        </select>
+        
+        <label className="block text-xs font-bold text-theme-text-muted mb-1">Condition value:</label>
+        <input 
+          className="w-full bg-theme-bg border border-theme-border text-theme-text p-2 text-sm focus:outline-none focus:border-purple-500 theme-button"
+          value={data.value || ''}
+          onChange={(e) => data.onChange(data.id, 'value', e.target.value)}
+          placeholder="e.g. VIP, contains 'buy'"
+        />
+      </div>
+      
+      {/* True Output */}
+      <div className="absolute right-0 top-[40%] flex items-center translate-x-1/2">
+        <span className="text-[10px] font-bold bg-theme-surface px-1 mr-2 text-green-500">True</span>
+        <Handle type="source" id="true" position={Position.Right} isConnectable={isConnectable} className="w-3 h-3 bg-green-500 !relative !transform-none !right-auto !top-auto" />
+      </div>
+      {/* False Output */}
+      <div className="absolute right-0 top-[70%] flex items-center translate-x-1/2">
+        <span className="text-[10px] font-bold bg-theme-surface px-1 mr-2 text-red-500">False</span>
+        <Handle type="source" id="false" position={Position.Right} isConnectable={isConnectable} className="w-3 h-3 bg-red-500 !relative !transform-none !right-auto !top-auto" />
+      </div>
+    </div>
+  );
+};
+
 const nodeTypes = {
   trigger: TriggerNode,
   message: MessageNode,
+  condition: ConditionNode,
 };
 
 const initialNodes = [
@@ -201,6 +244,16 @@ export default function FlowBuilder() {
     setNodes((nds) => [...nds, newNode]);
   };
 
+  const addConditionNode = () => {
+    const newNode = {
+      id: `node-${Date.now()}`,
+      type: 'condition',
+      position: { x: Math.random() * 200 + 400, y: Math.random() * 200 + 200 },
+      data: { id: `node-${Date.now()}`, variable: 'message_body', value: '', onChange: handleNodeDataChange }
+    };
+    setNodes((nds) => [...nds, newNode]);
+  };
+
   if (loading) return <div className="flex-1 flex items-center justify-center h-full text-theme-text-muted">Loading Flow Builder...</div>;
 
   return (
@@ -219,15 +272,22 @@ export default function FlowBuilder() {
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-theme-text-muted hover:text-theme-text transition-colors">
-            <input 
-              type="checkbox" 
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="w-4 h-4 accent-green-500 cursor-pointer"
-            />
-            <span className={isActive ? "text-green-500" : ""}>{isActive ? 'Flow Active' : 'Flow Disabled'}</span>
-          </label>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-theme-bg border border-theme-border p-1 rounded-md">
+            <button 
+              onClick={() => setIsActive(false)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${!isActive ? 'bg-theme-text-muted text-theme-bg' : 'text-theme-text hover:bg-theme-surface-hover'}`}
+            >
+              Draft
+            </button>
+            <button 
+              onClick={() => setIsActive(true)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${isActive ? 'bg-green-500 text-white shadow-sm' : 'text-theme-text hover:bg-theme-surface-hover'}`}
+            >
+              Published
+            </button>
+          </div>
+          
           
           <button 
             onClick={handleSave}
@@ -245,6 +305,9 @@ export default function FlowBuilder() {
         </button>
         <button onClick={addMessageNode} className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-theme-surface border border-theme-border text-theme-text hover:border-blue-500 transition-colors theme-button">
           <Plus size={14} /> Add Message
+        </button>
+        <button onClick={addConditionNode} className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-theme-surface border border-theme-border text-theme-text hover:border-purple-500 transition-colors theme-button">
+          <Plus size={14} /> Add Condition
         </button>
       </div>
 

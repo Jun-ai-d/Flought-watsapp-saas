@@ -12,7 +12,7 @@ interface DashboardMetrics {
   faqMatchTotal: number;
   handoverCount: number;
   recentHandovers?: any[];
-  timeSeries?: Array<{ name: string, fullDate: string, messages: number, botHandled: number, agentResponseTime?: number, aiResponseTime?: number }>;
+  timeSeries?: Array<{ name: string, fullDate: string, messages: number, botHandled: number, agentResponseTime?: number, aiResponseTime?: number, adSpend?: number, adRevenue?: number }>;
   topicDistribution?: Array<{ name: string, value: number }>;
   currentUsage?: { messages_sent: number, llm_calls: number, stt_minutes: number };
   avgAiResponseTime?: number;
@@ -95,7 +95,9 @@ const Dashboard: React.FC = () => {
   const chartData = (displayMetrics.timeSeries || []).map(d => ({
     ...d,
     agentResponseTime: d.agentResponseTime ?? 0,
-    aiResponseTime: d.aiResponseTime ?? 0
+    aiResponseTime: d.aiResponseTime ?? 0,
+    adSpend: d.adSpend ?? 0,
+    adRevenue: d.adRevenue ?? 0,
   }));
 
   const aiHandledRate = displayMetrics.totalMessages > 0 
@@ -362,6 +364,45 @@ const Dashboard: React.FC = () => {
         </div>
       </motion.div>
 
+      {/* ROAS Tracking Analytics (Phase 4 addition) */}
+      <motion.div variants={fadeUp} className="mt-6 theme-card p-8">
+        <h2 className="text-xl font-display font-bold text-theme-text mb-2">Return on Ad Spend (ROAS)</h2>
+        <p className="text-sm text-theme-text-muted font-medium mb-8">Compare daily Ad Spend vs. Revenue generated from Click-to-WhatsApp ads.</p>
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ff6b6b" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#ff6b6b" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00C49F" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#00C49F" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" stroke="var(--color-theme-text-muted)" fontSize={12} tickLine={false} axisLine={false} dy={10} fontWeight={600} />
+              <YAxis stroke="var(--color-theme-text-muted)" fontSize={12} tickLine={false} axisLine={false} dx={-10} fontWeight={600} tickFormatter={(val) => `$${val}`} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'var(--color-theme-surface)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid var(--color-theme-border)',
+                  borderRadius: 'var(--radius-theme-card)',
+                  boxShadow: 'var(--shadow-theme-card)',
+                  color: 'var(--color-theme-text)'
+                }}
+                labelStyle={{ fontWeight: 'bold', color: 'var(--color-theme-text)', marginBottom: '8px' }}
+                cursor={{ stroke: 'var(--color-theme-border)', strokeWidth: 2, strokeDasharray: '4 4' }}
+                formatter={(value: number) => [`$${value}`, undefined]}
+              />
+              <Area type="monotone" dataKey="adSpend" name="Ad Spend" stroke="#ff6b6b" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" />
+              <Area type="monotone" dataKey="adRevenue" name="Revenue" stroke="#00C49F" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </motion.div>
+
       {/* Quick Actions Area */}
       <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
         <div className="theme-card p-8">
@@ -420,4 +461,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard;
+export default React.memo(Dashboard);

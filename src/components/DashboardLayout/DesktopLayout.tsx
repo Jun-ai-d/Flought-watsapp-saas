@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, HelpCircle, FileText, Settings, CreditCard, LogOut, Shield, Megaphone, Users, Zap } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, HelpCircle, FileText, Settings, CreditCard, LogOut, Shield, Megaphone, Users, Zap, ShoppingBag, ShoppingCart, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -38,6 +38,9 @@ const DesktopLayout: React.FC = () => {
     { path: "/flows", label: "Flow Builder", icon: Zap },
     { path: "/contacts", label: "Contacts", icon: Users },
     { path: "/campaigns", label: "Campaigns", icon: Megaphone },
+    { path: "/ecommerce/shopify", label: "Shopify Sync", icon: ShoppingBag },
+    { path: "/ecommerce/carts", label: "Cart Recovery", icon: ShoppingCart },
+    { path: "/widget", label: "Chat Widget", icon: Globe },
     { path: "/billing", label: "Usage & Billing", icon: CreditCard },
     { path: "/settings", label: "Settings", icon: Settings },
   ];

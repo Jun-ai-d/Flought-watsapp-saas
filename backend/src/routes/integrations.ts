@@ -7,34 +7,43 @@ import { decryptToken } from '../bsp/crypto';
 const router = Router();
 
 /**
- * POST /api/integrations/shopify/webhook
- * Receives webhooks from Shopify (orders/create, checkouts/update, etc.)
+ * POST /api/integrations/shopify/webhook/:pathToken
+ *
+ * C-3 Fix: tenant_id is NO LONGER taken from the query string.
+ * The Shopify webhook URL now embeds a per-tenant secret path token
+ * (shopify_settings.webhook_path_token) so the tenant identity is derived
+ * from the secret token, not from user-supplied input.
+ *
+ * Register the webhook in Shopify as:
+ *   https://api.flought.com/api/integrations/shopify/webhook/{webhook_path_token}
  */
-router.post('/shopify/webhook', async (req: any, res: any) => {
-  const tenantId = req.query.tenant_id as string;
+router.post('/shopify/webhook/:pathToken', async (req: any, res: any) => {
+  const { pathToken } = req.params;
   const hmacHeader = req.headers['x-shopify-hmac-sha256'] as string;
   const topic = req.headers['x-shopify-topic'] as string;
 
-  if (!tenantId || !hmacHeader || !topic) {
+  if (!pathToken || !hmacHeader || !topic) {
     return res.status(400).send('Missing required parameters or headers');
   }
 
   try {
-    // 1. Fetch Shopify Settings for this tenant to get the Webhook Secret
-    const { data: settings } = await supabaseAdmin
+    // 1. Resolve tenant from secret path token — never from query params
+    const { data: settings, error: settingsErr } = await supabaseAdmin
       .from('shopify_settings')
-      .select('webhook_secret, is_active')
-      .eq('tenant_id', tenantId)
+      .select('tenant_id, webhook_secret, is_active')
+      .eq('webhook_path_token', pathToken)
       .single();
 
-    if (!settings || !settings.is_active || !settings.webhook_secret) {
-      return res.status(401).send('Integration not active or secret missing');
+    if (settingsErr || !settings || !settings.is_active || !settings.webhook_secret) {
+      // Generic 401 — don't reveal whether the token exists
+      return res.status(401).send('Unauthorized');
     }
 
-    const decryptedSecret = decryptToken(settings.webhook_secret);
+    const { tenant_id: tenantId, webhook_secret } = settings;
+    const decryptedSecret = decryptToken(webhook_secret);
 
-    // 2. Validate HMAC
-    const rawBody = req.rawBody; // Captured by express.json verify function
+    // 2. Validate HMAC against raw body
+    const rawBody = (req as any).rawBody;
     if (!rawBody) {
       console.error('No raw body available for Shopify webhook validation');
       return res.status(500).send('Server configuration error');
@@ -45,69 +54,72 @@ router.post('/shopify/webhook', async (req: any, res: any) => {
       .update(rawBody)
       .digest('base64');
 
+    // Constant-time comparison to prevent timing attacks
     const sigBuffer = Buffer.from(hmacHeader);
     const expectedBuffer = Buffer.from(genHash);
 
-    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-      console.warn(`Shopify HMAC mismatch for tenant ${tenantId}`);
+    if (
+      sigBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+    ) {
+      console.warn(`[Shopify] HMAC mismatch for tenant ${tenantId}`);
       return res.status(401).send('Unauthorized');
     }
 
-    // 3. Immediately acknowledge Shopify so it doesn't retry
-    res.status(200).send('Verified');
+    // 3. Acknowledge immediately so Shopify doesn't retry
+    res.status(200).send('OK');
 
-    // 4. Process Webhook asynchronously
-    const payload = req.body;
-    await processShopifyEvent(tenantId, topic, payload);
+    // 4. Process asynchronously
+    processShopifyEvent(tenantId, topic, req.body).catch(err =>
+      console.error('[Shopify] processShopifyEvent error:', err)
+    );
 
   } catch (error) {
-    console.error('Error processing Shopify webhook:', { error, tenantId });
+    console.error('Error processing Shopify webhook:', { error });
+    // Response already sent (200) or not sent yet — if not sent, send 500
+    if (!res.headersSent) res.status(500).send('Internal Server Error');
   }
 });
 
 async function processShopifyEvent(tenantId: string, topic: string, payload: any) {
-  // Extract phone number from Shopify payload (varies by event)
+  // Extract phone number from Shopify payload
   let phone = '';
   let customerName = 'Customer';
-  
-  if (payload.customer && payload.customer.phone) {
+
+  if (payload.customer?.phone) {
     phone = payload.customer.phone;
     customerName = payload.customer.first_name || 'Customer';
-  } else if (payload.shipping_address && payload.shipping_address.phone) {
+  } else if (payload.shipping_address?.phone) {
     phone = payload.shipping_address.phone;
     customerName = payload.shipping_address.first_name || 'Customer';
-  } else if (payload.billing_address && payload.billing_address.phone) {
+  } else if (payload.billing_address?.phone) {
     phone = payload.billing_address.phone;
     customerName = payload.billing_address.first_name || 'Customer';
   }
 
   if (!phone) {
-    console.log(`[Shopify] Ignored ${topic} because no phone number was found.`);
+    console.log(`[Shopify] Ignored ${topic}: no phone number found`);
     return;
   }
 
-  // Clean phone number (strip non-digits, ensuring it's in WhatsApp format if possible)
   const cleanPhone = String(phone).replace(/\D/g, '');
 
-  let templateIdToSend = null;
+  let templateName: string | null = null;
   let templateParams: string[] = [];
 
-  // Very basic routing logic for MVP
   if (topic === 'orders/create') {
-    templateIdToSend = 'order_confirmation';
+    templateName = 'order_confirmation';
     templateParams = [customerName, payload.order_number?.toString() || ''];
-  } else if (topic === 'checkouts/update') {
-    // Note: checkouts/update triggers often, you'd usually filter by 'abandoned' status or use checkouts/delete
-    templateIdToSend = 'abandoned_cart';
-    templateParams = [customerName, payload.abandoned_checkout_url || ''];
+  } else if (topic === 'checkouts/update' && payload.abandoned_checkout_url) {
+    templateName = 'abandoned_cart';
+    templateParams = [customerName, payload.abandoned_checkout_url];
   } else {
     console.log(`[Shopify] Unhandled topic: ${topic}`);
     return;
   }
 
-  // Send the template
   try {
-    // 1. Get BSP Config
+    // Fetch BSP config
     const { data: config } = await supabaseAdmin
       .from('tenant_bsp_config')
       .select('*')
@@ -115,7 +127,7 @@ async function processShopifyEvent(tenantId: string, topic: string, payload: any
       .single();
 
     if (!config) {
-      console.error(`[Shopify] Tenant ${tenantId} has no active WhatsApp connection.`);
+      console.error(`[Shopify] Tenant ${tenantId} has no WhatsApp config`);
       return;
     }
 
@@ -124,56 +136,70 @@ async function processShopifyEvent(tenantId: string, topic: string, payload: any
       decryptedConfig.access_token_encrypted = decryptToken(decryptedConfig.access_token_encrypted);
     }
 
-    // 2. Fetch the actual template from DB to get BSP ID
+    // Fetch approved template
     const { data: template } = await supabaseAdmin
       .from('message_templates')
       .select('*')
       .eq('tenant_id', tenantId)
-      .eq('name', templateIdToSend)
+      .eq('name', templateName)
       .eq('status', 'approved')
       .single();
 
     if (!template) {
-      console.warn(`[Shopify] Tenant ${tenantId} does not have an approved template named '${templateIdToSend}'`);
+      console.warn(`[Shopify] Tenant ${tenantId} has no approved template '${templateName}'`);
       return;
     }
 
-    // 3. Find an existing conversation if one exists, otherwise leave it null
+    // Find or create conversation
     const { data: existingConv } = await supabaseAdmin
       .from('conversations')
       .select('id')
       .eq('tenant_id', tenantId)
       .eq('customer_phone', cleanPhone)
-      .single();
-      
-    const conversationId = existingConv ? existingConv.id : null;
+      .maybeSingle();
 
-    // 4. Send Message via Provider
+    let conversationId: string | null = existingConv?.id ?? null;
+
+    if (!conversationId) {
+      const { data: newConv } = await supabaseAdmin
+        .from('conversations')
+        .insert({
+          tenant_id: tenantId,
+          customer_phone: cleanPhone,
+          customer_name: customerName,
+          status: 'bot'
+        })
+        .select('id')
+        .single();
+      conversationId = newConv?.id ?? null;
+    }
+
+    // Send template
     const provider = getBSPProvider(config.bsp_provider);
     const sendResult = await provider.sendTemplateMessage({
       tenantId,
       to: cleanPhone,
       templateId: template.bsp_template_id || template.name,
       category: template.category as any,
-      templateParams: templateParams,
+      templateParams,
       providerConfig: decryptedConfig
     });
 
-    // 5. Log outbound message
+    // Log message
     await supabaseAdmin.from('messages').insert({
       conversation_id: conversationId,
       tenant_id: tenantId,
       direction: 'outbound',
       message_type: 'template',
-      content: `[Shopify Automated Template: ${templateIdToSend}]`,
+      content: `[Shopify: ${templateName}]`,
       sender: 'agent',
       wa_message_id: sendResult.bspMessageId
     });
 
-    console.log(`[Shopify] Successfully triggered ${templateIdToSend} to ${cleanPhone}`);
-    
+    console.log(`[Shopify] Sent ${templateName} to ${cleanPhone}`);
+
   } catch (err: any) {
-    console.error(`[Shopify] Failed to send template message:`, { error: err.message, tenantId });
+    console.error('[Shopify] Failed to send template:', { error: err.message, tenantId });
   }
 }
 

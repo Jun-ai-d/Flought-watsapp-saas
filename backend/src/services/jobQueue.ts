@@ -2,9 +2,13 @@ import { PgBoss } from 'pg-boss';
 import path from 'path';
 import dotenv from 'dotenv';
 
-// Ensure env is loaded since jobQueue might be initialized early
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// L-1 Fix: Check if env is already loaded to avoid overriding injected variables in production
+if (!process.env.DATABASE_URL) {
+  dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+}
+if (!process.env.DATABASE_URL) {
+  dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+}
 
 const dbUrl = process.env.DATABASE_URL;
 

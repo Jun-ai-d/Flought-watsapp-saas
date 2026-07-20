@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto'; // L-1 Fix: top-level import, not inside handler
 import { supabaseAdmin } from '../lib/supabase';
 
 export interface ApiAuthRequest extends Request {
@@ -7,13 +8,12 @@ export interface ApiAuthRequest extends Request {
 
 export const requireApiKey = async (req: ApiAuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer sk_live_')) {
     return res.status(401).json({ error: 'Missing or invalid API key format' });
   }
 
   const rawKey = authHeader.replace('Bearer ', '');
-  const crypto = require('crypto');
   const hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
 
   try {

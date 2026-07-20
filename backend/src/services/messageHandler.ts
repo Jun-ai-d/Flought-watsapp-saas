@@ -76,11 +76,12 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   let accessToken: string | undefined;
   if (msg.type === 'audio' && msg.mediaUrl && providerName === 'meta') {
     const { data: bsp } = await supabaseAdmin.from('tenant_bsp_config')
-      .select('provider_config')
+      .select('access_token_encrypted')
       .eq('phone_number_id', msg.toPhoneNumberId)
       .maybeSingle();
-    if (bsp && bsp.provider_config) {
-      accessToken = (bsp.provider_config as any).accessToken;
+    if (bsp && bsp.access_token_encrypted) {
+      const { decryptToken } = await import('../bsp/crypto');
+      accessToken = decryptToken(bsp.access_token_encrypted);
     }
   }
 

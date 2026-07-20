@@ -530,13 +530,17 @@ const Inbox: React.FC = () => {
       return <div className="p-8 text-center text-theme-text-muted font-medium">No matches found for "{searchTerm}".</div>;
     }
 
-    return filtered.map(conv => (
+    return filtered.map(conv => {
+      const isSlaBreached = conv.status === 'handover_pending' && ((Date.now() - new Date(conv.last_message_at).getTime()) / (1000 * 60 * 60) > 1);
+      
+      return (
       <li 
         key={conv.id} 
         className={cn(
-          "p-4 border-b border-theme-border cursor-pointer hover:bg-theme-surface-hover transition-colors flex gap-3",
+          "p-4 border-b border-theme-border cursor-pointer hover:bg-theme-surface-hover transition-colors flex gap-3 relative",
           selectedId === conv.id ? "bg-brand-accent/5 border-l-4 border-l-brand-accent" : "border-l-4 border-l-transparent",
-          selectedIds.includes(conv.id) && "bg-brand-accent/10"
+          selectedIds.includes(conv.id) && "bg-brand-accent/10",
+          isSlaBreached && "bg-red-500/5"
         )}
         onClick={() => setSelectedId(conv.id)}
       >
@@ -551,8 +555,13 @@ const Inbox: React.FC = () => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start mb-2">
-            <span className="font-mono text-sm text-theme-text-muted">{conv.customer_phone}</span>
-            <span className="text-xs text-theme-text-muted font-medium shrink-0 ml-2">{formatTime(conv.last_message_at)}</span>
+            <span className="font-mono text-sm text-theme-text-muted flex items-center gap-2">
+              {conv.customer_phone}
+              {isSlaBreached && <span className="text-[10px] bg-red-500 text-white px-1 rounded-sm font-bold animate-pulse" title="SLA Breached (> 1 hour)">SLA BREACH</span>}
+            </span>
+            <span className={cn("text-xs font-medium shrink-0 ml-2", isSlaBreached ? "text-red-500 font-bold" : "text-theme-text-muted")}>
+              {formatTime(conv.last_message_at)}
+            </span>
           </div>
           <div className="flex justify-between items-center mt-1">
             <div className="font-bold text-theme-text">{conv.customer_name || 'Customer'}</div>
@@ -562,15 +571,21 @@ const Inbox: React.FC = () => {
                 {conv.department}
               </div>
             )}
-            <div className={cn(
-              "px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider theme-button",
-              conv.status === 'bot' ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" :
-              conv.status === 'handover_pending' ? "bg-brand-accent/10 text-brand-accent border border-brand-accent/20" :
-              conv.status === 'handover_active' ? "bg-purple-500/10 text-purple-500 border border-purple-500/20" :
-              "bg-green-500/10 text-green-500 border border-green-500/20"
-            )}>
-              {conv.status.replace('_', ' ')}
-            </div>
+            {conv.status === 'bot' && (
+              <div className="px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 border border-blue-500/20 theme-button flex items-center gap-1">
+                <Bot size={10} /> Active Flow
+              </div>
+            )}
+            {conv.status !== 'bot' && (
+              <div className={cn(
+                "px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider theme-button",
+                conv.status === 'handover_pending' ? "bg-brand-accent/10 text-brand-accent border border-brand-accent/20" :
+                conv.status === 'handover_active' ? "bg-purple-500/10 text-purple-500 border border-purple-500/20" :
+                "bg-green-500/10 text-green-500 border border-green-500/20"
+              )}>
+                {conv.status.replace('_', ' ')}
+              </div>
+            )}
             {viewingAgents[conv.id] && viewingAgents[conv.id].length > 0 && (
               <div className="w-5 h-5 rounded-full bg-brand-accent text-white flex items-center justify-center text-[10px] font-bold border border-theme-bg" title={`${viewingAgents[conv.id].join(', ')} is viewing`}>
                 {viewingAgents[conv.id].length}
@@ -580,7 +595,7 @@ const Inbox: React.FC = () => {
         </div>
         </div>
       </li>
-    ));
+    )});
   }, [loading, conversations, selectedId, filter, deptFilter, searchTerm, formatTime, viewingAgents, selectedIds, toggleRow]);
 
   const memoizedMessages = useMemo(() => {

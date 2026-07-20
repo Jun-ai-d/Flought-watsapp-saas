@@ -70,6 +70,16 @@ router.post('/create-subscription', requireTenantMember, async (req: Request, re
       return res.status(400).json({ error: 'No plan ID provided and no default configured.' });
     }
 
+    // H-5 Fix: Validate plan_id against known plans
+    const validPlans = [
+      process.env.RAZORPAY_STANDARD_PLAN_ID,
+      process.env.RAZORPAY_PRO_PLAN_ID
+    ].filter(Boolean);
+    
+    if (!validPlans.includes(targetPlanId)) {
+      return res.status(400).json({ error: 'Invalid plan ID selected.' });
+    }
+
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return res.status(500).json({ error: 'Billing is not configured on this server.' });
     }
@@ -150,14 +160,22 @@ router.post('/webhook', async (req: Request, res: Response) => {
             billing_period_end: new Date(sub.current_end * 1000).toISOString()
           });
 
+          // H-1 Fix: Parse plan details based on plan_id mapping
+          let planName = 'standard';
+          let capMessages = 1500;
+          if (sub.plan_id === process.env.RAZORPAY_PRO_PLAN_ID) {
+            planName = 'pro';
+            capMessages = 5000;
+          }
+
           // Update Subscription Status
           await supabaseAdmin.from('subscriptions').upsert({
             tenant_id: tenantId,
             razorpay_subscription_id: sub.id,
             status: 'active',
-            plan: 'standard', // Parse from Razorpay or keep sync
+            plan: planName,
             price_inr: payment.amount / 100,
-            cap_messages: 1500
+            cap_messages: capMessages
           }, { onConflict: 'tenant_id' });
         }
         break;

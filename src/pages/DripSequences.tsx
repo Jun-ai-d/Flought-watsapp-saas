@@ -11,6 +11,7 @@ const DripSequences: React.FC = () => {
   const [showBuilder, setShowBuilder] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState('');
   const [steps, setSteps] = useState<{ templateId: string, delayHours: number, stepOrder: number }[]>([]);
+  const [selectedCampaignView, setSelectedCampaignView] = useState<any>(null);
   
   const [selectedCampaignForEnrollment, setSelectedCampaignForEnrollment] = useState('');
   const [contacts, setContacts] = useState<any[]>([]);
@@ -41,6 +42,20 @@ const DripSequences: React.FC = () => {
       return res.json();
     },
     enabled: !!tenant?.id && !!session?.access_token,
+  });
+
+  const { data: enrollments = [], isLoading: loadingEnrollments } = useQuery<any[]>({
+    queryKey: ['enrollments', tenant?.id, selectedCampaignView?.id],
+    queryFn: async () => {
+      if (!selectedCampaignView) return [];
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/campaigns/${tenant!.id}/${selectedCampaignView.id}/enrollments`, {
+        headers: { 'Authorization': `Bearer ${session!.access_token}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch enrollments');
+      return res.json();
+    },
+    enabled: !!tenant?.id && !!session?.access_token && !!selectedCampaignView,
   });
 
   const createCampaignMutation = useMutation({
@@ -169,13 +184,50 @@ const DripSequences: React.FC = () => {
           ) : (
             <div className="space-y-4">
               {campaigns.map((c: any) => (
-                <div key={c.id} className="border border-theme-border bg-theme-surface p-4 hover:border-brand-accent transition-colors theme-button cursor-pointer flex flex-col justify-between">
+                <div key={c.id} 
+                     onClick={() => setSelectedCampaignView(c)}
+                     className={`border ${selectedCampaignView?.id === c.id ? 'border-brand-accent ring-1 ring-brand-accent' : 'border-theme-border'} bg-theme-surface p-4 hover:border-brand-accent transition-colors theme-button cursor-pointer flex flex-col justify-between`}>
                   <div>
                     <h3 className="font-bold text-theme-text text-lg">{c.name}</h3>
                     <p className="text-sm text-brand-accent mt-1 font-medium bg-brand-accent/10 inline-block px-2 py-0.5 rounded-full">{c.drip_steps.length} steps configured</p>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {selectedCampaignView && (
+            <div className="mt-8 border-t border-theme-border pt-6">
+              <h3 className="font-bold text-theme-text mb-4">Enrollments for {selectedCampaignView.name}</h3>
+              {loadingEnrollments ? (
+                <p className="text-sm text-theme-text-muted">Loading...</p>
+              ) : enrollments.length === 0 ? (
+                <p className="text-sm text-theme-text-muted italic">No contacts enrolled yet.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto border border-theme-border rounded-lg bg-theme-bg">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-theme-surface border-b border-theme-border">
+                      <tr>
+                        <th className="px-4 py-2 text-theme-text-muted font-bold">Contact Phone</th>
+                        <th className="px-4 py-2 text-theme-text-muted font-bold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-theme-border">
+                      {enrollments.map((e: any) => (
+                        <tr key={e.id}>
+                          <td className="px-4 py-2 font-mono text-theme-text">{e.contact_phone}</td>
+                          <td className="px-4 py-2">
+                            {e.status === 'active' && <span className="text-green-500 font-bold bg-green-500/10 px-2 py-1 rounded-full text-xs">Active</span>}
+                            {e.status === 'cancelled' && <span className="text-red-500 font-bold bg-red-500/10 px-2 py-1 rounded-full text-xs">Cancelled (Replied)</span>}
+                            {e.status === 'completed' && <span className="text-blue-500 font-bold bg-blue-500/10 px-2 py-1 rounded-full text-xs">Completed</span>}
+                            {!['active', 'cancelled', 'completed'].includes(e.status) && <span className="text-theme-text-muted">{e.status || 'Unknown'}</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -25,6 +25,9 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const DesignShowcase = lazy(() => import('./pages/DesignShowcase'));
+const ShopifyHub = lazy(() => import('./pages/ShopifyHub'));
+const CartRecovery = lazy(() => import('./pages/CartRecovery'));
+const WidgetConfigurator = lazy(() => import('./pages/WidgetConfigurator'));
 
 // Admin Pages
 const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'));
@@ -86,6 +89,9 @@ function App() {
               <Route path="/flows" element={<FlowBuilder />} />
               <Route path="/campaigns" element={<Campaigns />} />
               <Route path="/contacts" element={<Contacts />} />
+              <Route path="/ecommerce/shopify" element={<ShopifyHub />} />
+              <Route path="/ecommerce/carts" element={<CartRecovery />} />
+              <Route path="/widget" element={<WidgetConfigurator />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/settings" element={<Settings />} />
             </Route>

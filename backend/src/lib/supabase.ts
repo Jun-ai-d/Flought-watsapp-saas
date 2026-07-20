@@ -1,21 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import path from 'path';
 
-const result = dotenv.config();
+dotenv.config();
 
-if (result.error) {
-  console.error('Dotenv error:', result.error);
-}
-
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+// M-11 Fix: removed VITE_SUPABASE_URL fallback — VITE_ prefix is a client-side Vite convention
+// and should never be used in a Node.js backend. Always use SUPABASE_URL here.
+const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log('Backend loaded Supabase URL:', supabaseUrl ? 'Found' : 'Missing');
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase env vars in backend');
+if (!supabaseUrl) {
+  throw new Error('Missing env var: SUPABASE_URL');
 }
 
-// Service role client bypasses RLS for webhook ingestion
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+if (!supabaseServiceKey) {
+  throw new Error('Missing env var: SUPABASE_SERVICE_ROLE_KEY');
+}
+
+console.log('Backend Supabase URL:', supabaseUrl ? 'Found' : 'Missing');
+
+// Service role client — bypasses RLS for server-side writes.
+// NEVER expose this client or its key to frontend code.
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});

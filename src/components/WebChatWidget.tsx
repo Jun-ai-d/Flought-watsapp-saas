@@ -3,7 +3,11 @@ import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 
-export const WebChatWidget: React.FC = () => {
+interface WebChatWidgetProps {
+  forcePreview?: boolean;
+}
+
+export const WebChatWidget: React.FC<WebChatWidgetProps> = ({ forcePreview = false }) => {
   const { tenant } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ id: string, text: string, isBot: boolean }[]>([]);
@@ -109,8 +113,8 @@ export const WebChatWidget: React.FC = () => {
     }, 2000);
   };
 
-  if (tenant?.plan_type !== 'trial') {
-    return null; // Only show for trial users
+  if (tenant?.plan_type !== 'trial' && !forcePreview) {
+    return null; // Only show for trial users unless in preview mode
   }
 
   return (
