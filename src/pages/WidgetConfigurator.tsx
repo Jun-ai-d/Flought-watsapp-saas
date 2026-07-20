@@ -32,6 +32,7 @@ export default function WidgetConfigurator() {
       const newToken = `wt_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`;
       const { error } = await supabase
         .from('tenants')
+        // @ts-ignore
         .update({ widget_token: newToken })
         .eq('id', tenant!.id);
       
@@ -45,7 +46,7 @@ export default function WidgetConfigurator() {
   });
 
   const handleCopy = () => {
-    const embedCode = `<script src="https://cdn.flought.com/widget.js" data-token="${config?.widget_token || 'YOUR_TOKEN'}"></script>`;
+    const embedCode = `<script src="https://cdn.flought.com/widget.js" data-token="${(config as any)?.widget_token || 'YOUR_TOKEN'}"></script>`;
     navigator.clipboard.writeText(embedCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -78,7 +79,7 @@ export default function WidgetConfigurator() {
               <pre className="bg-theme-bg border border-theme-border p-4 rounded-lg text-sm font-mono overflow-x-auto text-theme-text theme-button">
 {`<script 
   src="https://cdn.flought.com/widget.js" 
-  data-token="${config?.widget_token || 'YOUR_TOKEN'}"
+  data-token="${(config as any)?.widget_token || 'YOUR_TOKEN'}"
 ></script>`}
               </pre>
               <button 
@@ -129,7 +130,7 @@ export default function WidgetConfigurator() {
                 <div className="w-1/3 h-full bg-theme-border rounded-b-xl"></div>
               </div>
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                <h3 className="font-display font-bold text-xl mb-2">{config?.business_name || 'Your Website'}</h3>
+                <h3 className="font-display font-bold text-xl mb-2">{(config as any)?.business_name || 'Your Website'}</h3>
                 <p className="text-theme-text-muted text-sm">This is how your website looks to visitors.</p>
                 <p className="text-theme-text-muted text-sm mt-4">Try clicking the widget in the bottom right!</p>
               </div>

@@ -271,7 +271,6 @@ export default function FlowBuilder() {
           />
         </div>
 
-        <div className="flex items-center gap-3">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1 bg-theme-bg border border-theme-border p-1 rounded-md">
             <button 
