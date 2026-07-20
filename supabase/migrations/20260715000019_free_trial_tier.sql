@@ -3,13 +3,13 @@
 
 -- 1. Modify tenants table
 ALTER TABLE public.tenants
-ADD COLUMN plan_type TEXT DEFAULT 'trial',
-ADD COLUMN trial_started_at TIMESTAMPTZ,
-ADD COLUMN trial_expires_at TIMESTAMPTZ,
-ADD COLUMN trial_conversations_used INTEGER DEFAULT 0,
-ADD COLUMN trial_conversations_limit INTEGER DEFAULT 100,
-ADD COLUMN trial_kb_doc_count INTEGER DEFAULT 0,
-ADD COLUMN trial_faq_count INTEGER DEFAULT 0;
+ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'trial',
+ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS trial_conversations_used INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS trial_conversations_limit INTEGER DEFAULT 100,
+ADD COLUMN IF NOT EXISTS trial_kb_doc_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS trial_faq_count INTEGER DEFAULT 0;
 
 -- 2. Create trial_verifications table for dedupe
 CREATE TABLE public.trial_verifications (

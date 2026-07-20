@@ -1,5 +1,5 @@
 -- Add is_internal flag to messages
-ALTER TABLE public.messages ADD COLUMN is_internal BOOLEAN DEFAULT false;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS is_internal BOOLEAN DEFAULT false;
 
 -- Create quick_replies table
 CREATE TABLE IF NOT EXISTS public.quick_replies (

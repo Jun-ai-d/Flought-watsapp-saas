@@ -1289,7 +1289,7 @@ $$;
 
 -- MIGRATION: 20260715000007_inbox_collaboration.sql
 -- Add is_internal flag to messages
-ALTER TABLE public.messages ADD COLUMN is_internal BOOLEAN DEFAULT false;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS is_internal BOOLEAN DEFAULT false;
 
 -- Create quick_replies table
 CREATE TABLE IF NOT EXISTS public.quick_replies (
@@ -1889,13 +1889,13 @@ create policy "Tenant members can delete knowledge base files"
 
 -- 1. Modify tenants table
 ALTER TABLE public.tenants
-ADD COLUMN plan_type TEXT DEFAULT 'trial',
-ADD COLUMN trial_started_at TIMESTAMPTZ,
-ADD COLUMN trial_expires_at TIMESTAMPTZ,
-ADD COLUMN trial_conversations_used INTEGER DEFAULT 0,
-ADD COLUMN trial_conversations_limit INTEGER DEFAULT 100,
-ADD COLUMN trial_kb_doc_count INTEGER DEFAULT 0,
-ADD COLUMN trial_faq_count INTEGER DEFAULT 0;
+ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'trial',
+ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS trial_conversations_used INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS trial_conversations_limit INTEGER DEFAULT 100,
+ADD COLUMN IF NOT EXISTS trial_kb_doc_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS trial_faq_count INTEGER DEFAULT 0;
 
 -- 2. Create trial_verifications table for dedupe
 CREATE TABLE public.trial_verifications (
@@ -2413,8 +2413,8 @@ $$;
 
 
 -- MIGRATION: 20260716000002_add_campaign_state.sql
-ALTER TABLE drip_enrollments ADD COLUMN current_step_order INTEGER NOT NULL DEFAULT 1;
-ALTER TABLE drip_enrollments ADD COLUMN next_step_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE drip_enrollments ADD COLUMN IF NOT EXISTS current_step_order INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE drip_enrollments ADD COLUMN IF NOT EXISTS next_step_at TIMESTAMPTZ DEFAULT now();
 
 
 -- MIGRATION: 20260716000003_fix_is_internal_column.sql
