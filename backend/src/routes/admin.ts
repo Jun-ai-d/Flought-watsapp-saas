@@ -57,17 +57,35 @@ const requirePlatformAdmin = async (req: AdminRequest, res: Response, next: Next
   next();
 };
 
-// Apply the middleware to ALL routes in this router
-router.use(requirePlatformAdmin);
-
 /**
  * GET /check
- * Used by the frontend AuthContext to determine if the "Admin Dashboard" button 
- * should be rendered in the sidebar.
+ * Used by the frontend AuthContext to determine if the "Admin Dashboard" button
+ * should be rendered. Any authenticated user may call this; only platform admins get true.
  */
-router.get('/check', (req, res) => {
-  res.json({ isPlatformAdmin: true });
+router.get('/check', async (req: AdminRequest, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'No authorization header' });
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const { data: adminData } = await supabaseAdmin
+    .from('platform_admins')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  res.json({ isPlatformAdmin: !!adminData });
 });
+
+// Apply platform-admin middleware to all other routes in this router
+router.use(requirePlatformAdmin);
 
 /**
  * GET /metrics

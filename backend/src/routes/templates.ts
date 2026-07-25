@@ -7,6 +7,20 @@ import { decryptToken } from '../bsp/crypto';
 
 const router = Router();
 
+function mapTemplateButtons(buttons: Array<{ type: string; text: string; url?: string }> | undefined) {
+  if (!buttons?.length) return undefined;
+  return buttons.map((btn) => {
+    const normalized = btn.type.toLowerCase();
+    if (normalized === 'url') {
+      return { type: 'URL' as const, text: btn.text, url: btn.url || '' };
+    }
+    if (normalized === 'phone_number') {
+      return { type: 'PHONE_NUMBER' as const, text: btn.text, phoneNumber: btn.url || '' };
+    }
+    return { type: 'QUICK_REPLY' as const, text: btn.text };
+  });
+}
+
 // Get all templates for a tenant
 router.get('/:tenantId', requireTenantMember, async (req: Request, res: Response) => {
   const tenantId = (req as any).tenantId;
@@ -62,7 +76,7 @@ router.post('/:tenantId', requireTenantMember, enforceQuota, async (req: Request
       headerType,
       headerContent,
       footer,
-      buttons,
+      buttons: mapTemplateButtons(buttons),
       providerConfig: decryptedConfig
     });
 
@@ -87,9 +101,10 @@ router.post('/:tenantId', requireTenantMember, enforceQuota, async (req: Request
     if (dbError) throw dbError;
 
     res.json(template);
-  } catch (error: any) {
-    console.error('Error creating template:', { error, trace_id: req.traceId });
-    res.status(500).json({ error: 'Failed to create template' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create template';
+    console.error('Error creating template:', { error: message, trace_id: req.traceId });
+    res.status(500).json({ error: message });
   }
 });
 

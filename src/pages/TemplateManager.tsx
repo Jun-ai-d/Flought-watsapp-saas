@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, CheckCircle, Clock, XCircle, X } from 'lucide-react';
+import { Plus, CheckCircle, Clock, XCircle, X, Upload } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const TemplateManager: React.FC = () => {
   const queryClient = useQueryClient();
@@ -16,6 +17,29 @@ const TemplateManager: React.FC = () => {
   const [headerContent, setHeaderContent] = useState('');
   const [footer, setFooter] = useState('');
   const [buttons, setButtons] = useState<{ type: string, text: string, url: string }[]>([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isMediaHeader = ['image', 'video', 'document'].includes(headerType);
+
+  const uploadHeaderMedia = async (file: File) => {
+    if (!tenant) throw new Error('No tenant selected');
+    setUploadingMedia(true);
+    try {
+      const ext = file.name.split('.').pop() || 'bin';
+      const path = `${tenant.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('template_media')
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('template_media').getPublicUrl(path);
+      if (!data.publicUrl) throw new Error('Failed to get public URL for uploaded media');
+      setHeaderContent(data.publicUrl);
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
 
   const { data: templates = [], isLoading: loading } = useQuery<any[]>({
     queryKey: ['templates', tenant?.id],
@@ -68,6 +92,23 @@ const TemplateManager: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant || !session) return;
+
+    if (headerType !== 'none' && !headerContent.trim()) {
+      alert(isMediaHeader ? 'Upload a file or paste a media URL for the header.' : 'Enter header text.');
+      return;
+    }
+
+    for (const btn of buttons) {
+      if (!btn.text.trim()) {
+        alert('Each button needs text.');
+        return;
+      }
+      if (btn.type === 'url' && !btn.url.trim()) {
+        alert('URL buttons need a valid URL.');
+        return;
+      }
+    }
+
     createMutation.mutate({ 
       name, category, body, 
       headerType: headerType !== 'none' ? headerType : undefined,
@@ -227,23 +268,69 @@ const TemplateManager: React.FC = () => {
                 <label className="block text-sm font-bold text-theme-text-muted mb-2">Header (Optional)</label>
                 <select 
                   value={headerType} 
-                  onChange={(e) => setHeaderType(e.target.value)}
+                  onChange={(e) => {
+                    setHeaderType(e.target.value);
+                    setHeaderContent('');
+                  }}
                   className="w-full p-3 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none mb-3 theme-button"
                 >
                   <option value="none">None</option>
                   <option value="text">Text</option>
-                  <option value="image">Image URL</option>
-                  <option value="video">Video URL</option>
-                  <option value="document">Document URL</option>
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                  <option value="document">Document</option>
                 </select>
-                {headerType !== 'none' && (
+                {headerType === 'text' && (
                   <input 
                     type="text" 
                     value={headerContent} 
                     onChange={(e) => setHeaderContent(e.target.value)}
-                    placeholder={headerType === 'text' ? "e.g. Welcome" : "https://example.com/media.png"}
+                    placeholder="e.g. Welcome"
                     className="w-full p-3 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button"
                   />
+                )}
+                {isMediaHeader && (
+                  <div className="space-y-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={
+                        headerType === 'image' ? 'image/*' :
+                        headerType === 'video' ? 'video/*' :
+                        '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
+                      }
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          await uploadHeaderMedia(file);
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : 'Upload failed');
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingMedia}
+                      className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-theme-border bg-theme-bg text-theme-text hover:border-brand-accent transition-colors theme-button disabled:opacity-50"
+                    >
+                      <Upload size={16} />
+                      {uploadingMedia ? 'Uploading...' : `Upload ${headerType}`}
+                    </button>
+                    <input 
+                      type="url" 
+                      value={headerContent} 
+                      onChange={(e) => setHeaderContent(e.target.value)}
+                      placeholder="Or paste a public HTTPS URL"
+                      className="w-full p-3 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button"
+                    />
+                    {headerContent && (
+                      <p className="text-xs text-green-600 truncate">Media URL ready</p>
+                    )}
+                  </div>
                 )}
               </div>
 

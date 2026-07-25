@@ -74,8 +74,8 @@ export class MetaProvider implements BSPProvider {
     buttons?: TemplateButton[];
     providerConfig: ProviderConfig;
   }): Promise<{ bspTemplateId: string; status: 'approved' | 'pending' | 'rejected' }> {
-    const { tenantId, name, category, body, providerConfig } = params;
-    console.log(`[Meta] Submitting template: ${name}`, { tenantId });
+    const { tenantId, name, category, body, headerType, headerContent, footer, buttons, providerConfig } = params;
+    console.log(`[Meta] Submitting template: ${name}`, { tenantId, headerType });
     
     const accessToken = providerConfig.access_token_encrypted || process.env.META_ACCESS_TOKEN;
     const wabaId = providerConfig.waba_id;
@@ -84,19 +84,54 @@ export class MetaProvider implements BSPProvider {
       throw new Error(`[Meta] Missing WABA ID or Access Token for tenant ${tenantId}. Template submission failed.`);
     }
 
-    // Map category to Meta's uppercase format
     const metaCategory = category.toUpperCase();
+    const components: Record<string, unknown>[] = [];
+
+    if (headerType && headerContent) {
+      if (headerType === 'text') {
+        components.push({ type: 'HEADER', format: 'TEXT', text: headerContent });
+      } else {
+        const format = headerType.toUpperCase();
+        components.push({
+          type: 'HEADER',
+          format,
+          example: { header_url: [headerContent] },
+        });
+      }
+    }
+
+    const bodyComponent: Record<string, unknown> = { type: 'BODY', text: body };
+    const varMatches = body.match(/\{\{(\d+)\}\}/g);
+    if (varMatches) {
+      const count = new Set(varMatches).size;
+      bodyComponent.example = { body_text: [Array.from({ length: count }, () => 'Example')] };
+    }
+    components.push(bodyComponent);
+
+    if (footer) {
+      components.push({ type: 'FOOTER', text: footer });
+    }
+
+    if (buttons && buttons.length > 0) {
+      components.push({
+        type: 'BUTTONS',
+        buttons: buttons.map((btn) => {
+          if (btn.type === 'URL') {
+            return { type: 'URL', text: btn.text, url: btn.url };
+          }
+          if (btn.type === 'PHONE_NUMBER') {
+            return { type: 'PHONE_NUMBER', text: btn.text, phone_number: btn.phoneNumber };
+          }
+          return { type: 'QUICK_REPLY', text: btn.text };
+        }),
+      });
+    }
 
     const templateData = {
       name: name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
       language: 'en_US',
       category: metaCategory,
-      components: [
-        {
-          type: 'BODY',
-          text: body
-        }
-      ]
+      components,
     };
 
     const response = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates`, {

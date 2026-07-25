@@ -216,9 +216,15 @@ export default function FlowBuilder() {
         if (data) setFlowId((data as any).id);
       }
       alert('Flow saved successfully!');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      alert('Failed to save flow');
+      const code = (err as { code?: string })?.code;
+      if (code === 'PGRST205') {
+        alert('Flow Builder table is missing. Apply Supabase migrations (bot_flows) and reload the schema cache, then try again.');
+      } else {
+        const message = err instanceof Error ? err.message : 'Failed to save flow';
+        alert(message);
+      }
     } finally {
       setSaving(false);
     }
