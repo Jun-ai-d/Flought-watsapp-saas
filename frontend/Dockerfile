@@ -13,6 +13,8 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_META_APP_ID=$VITE_META_APP_ID
 
 COPY package.json package-lock.json ./
+# Coolify injects NODE_ENV=production at build time; vite/tsc live in devDependencies.
+ENV NODE_ENV=development
 RUN npm ci
 
 COPY index.html vite.config.ts tsconfig*.json ./
