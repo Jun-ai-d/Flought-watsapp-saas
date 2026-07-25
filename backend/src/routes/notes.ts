@@ -1,48 +1,79 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
+import { requireTenantMember, TenantRequest } from '../middleware/requireTenantMember';
 
 const router = Router();
 
-// Endpoint to fetch notes for a conversation
-router.get('/:conversationId', async (req: any, res: any) => {
-  const { conversationId } = req.params;
-  const tenantId = req.query.tenantId;
+async function assertConversationInTenant(conversationId: string, tenantId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('conversations')
+    .select('id')
+    .eq('id', conversationId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  return !error && !!data;
+}
+
+router.get('/:conversationId', requireTenantMember, async (req: TenantRequest, res) => {
+  const conversationId = String(req.params.conversationId);
+  const tenantId = req.tenantId || (req.query.tenantId as string);
+
+  if (!tenantId) {
+    return res.status(400).json({ error: 'Missing tenantId' });
+  }
 
   try {
+    const belongs = await assertConversationInTenant(conversationId, tenantId);
+    if (!belongs) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('conversation_notes')
-      .select('*, author:auth.users(email)')
+      .select('*')
       .eq('conversation_id', conversationId)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
     res.status(200).json(data);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch notes';
+    res.status(500).json({ error: message });
   }
 });
 
-// Endpoint to add a note
-router.post('/', async (req: any, res: any) => {
-  const { tenantId, conversationId, authorId, content } = req.body;
+router.post('/', requireTenantMember, async (req: TenantRequest, res) => {
+  const tenantId = req.tenantId || req.body?.tenantId;
+  const { conversationId, authorId, content } = req.body;
+
+  if (!tenantId || !conversationId || !content) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
   try {
+    const belongs = await assertConversationInTenant(conversationId, tenantId);
+    if (!belongs) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('conversation_notes')
       .insert({
         tenant_id: tenantId,
         conversation_id: conversationId,
-        author_id: authorId,
-        content: content
+        author_id: authorId || req.user?.id,
+        content,
       })
       .select()
       .single();
 
     if (error) throw error;
     res.status(201).json(data);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create note';
+    res.status(500).json({ error: message });
   }
 });
 

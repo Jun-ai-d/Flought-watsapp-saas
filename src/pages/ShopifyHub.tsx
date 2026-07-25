@@ -7,6 +7,7 @@ const ShopifyHub: React.FC = () => {
   const { tenant, session } = useAuth();
   const queryClient = useQueryClient();
   const [showSecret, setShowSecret] = useState(false);
+  const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
 
   const { data: integration, isLoading } = useQuery<any>({
     queryKey: ['shopify-integration', tenant?.id],
@@ -73,28 +74,58 @@ const ShopifyHub: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-theme-text-muted uppercase tracking-wider mb-1">Webhook Secret</p>
-                  <div className="flex gap-2">
-                    <input
-                      type={showSecret ? "text" : "password"}
-                      readOnly
-                      value={integration.webhook_secret}
-                      className="font-mono text-theme-text bg-theme-bg p-3 border border-theme-border rounded-md flex-1 outline-none"
-                    />
-                    <button 
-                      onClick={() => setShowSecret(!showSecret)}
-                      className="px-3 bg-theme-surface border border-theme-border text-theme-text hover:bg-brand-accent hover:text-white transition-colors"
-                      style={{ borderRadius: 'var(--radius-button)' }}
+                  {revealedSecret ? (
+                    <div className="flex gap-2">
+                      <input
+                        type={showSecret ? "text" : "password"}
+                        readOnly
+                        value={revealedSecret}
+                        className="font-mono text-theme-text bg-theme-bg p-3 border border-theme-border rounded-md flex-1 outline-none"
+                      />
+                      <button 
+                        onClick={() => setShowSecret(!showSecret)}
+                        className="px-3 bg-theme-surface border border-theme-border text-theme-text hover:bg-brand-accent hover:text-white transition-colors"
+                        style={{ borderRadius: 'var(--radius-button)' }}
+                      >
+                        {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard(revealedSecret)}
+                        className="px-3 bg-brand-accent text-white hover:bg-brand-accent-light transition-colors font-bold"
+                        style={{ borderRadius: 'var(--radius-button)' }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-theme-text-muted font-medium">
+                      {integration.has_secret
+                        ? 'Secret is stored securely. Rotate to reveal a new one.'
+                        : 'No webhook secret configured yet.'}
+                    </p>
+                  )}
+                  {integration.has_secret && (
+                    <button
+                      onClick={async () => {
+                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+                        const res = await fetch(`${apiUrl}/api/shopify/${tenant!.id}/integration/rotate-secret`, {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${session!.access_token}` },
+                        });
+                        if (!res.ok) {
+                          alert('Failed to rotate secret');
+                          return;
+                        }
+                        const data = await res.json();
+                        setRevealedSecret(data.webhook_secret);
+                        setShowSecret(true);
+                        alert('New webhook secret generated. Copy it now — it will not be shown again.');
+                      }}
+                      className="mt-3 text-sm font-bold text-brand-accent hover:underline flex items-center gap-1"
                     >
-                      {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                      <RefreshCw size={14} /> Rotate webhook secret
                     </button>
-                    <button 
-                      onClick={() => copyToClipboard(integration.webhook_secret)}
-                      className="px-3 bg-brand-accent text-white hover:bg-brand-accent-light transition-colors font-bold"
-                      style={{ borderRadius: 'var(--radius-button)' }}
-                    >
-                      Copy
-                    </button>
-                  </div>
+                  )}
                   <p className="text-xs text-theme-text-muted mt-2">Use this secret when creating webhooks in your Shopify admin panel.</p>
                 </div>
               </div>

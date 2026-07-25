@@ -907,7 +907,7 @@ const ShopifySettings = ({ tenantId, session }: { tenantId: string, session: any
     if (config) {
       setForm({
         store_url: config.store_url || '',
-        webhook_secret: config.webhook_secret || '',
+        webhook_secret: '',
         is_active: config.is_active ?? false
       });
     }
@@ -928,7 +928,12 @@ const ShopifySettings = ({ tenantId, session }: { tenantId: string, session: any
         body: JSON.stringify(form)
       });
       if (!res.ok) throw new Error('API Error');
-      alert('Shopify Integration saved successfully!');
+      const saved = await res.json();
+      if (saved.webhook_secret) {
+        alert(`Shopify Integration saved! Webhook secret (copy now): ${saved.webhook_secret}`);
+      } else {
+        alert('Shopify Integration saved successfully!');
+      }
       refetch();
     } catch (err) {
       alert('Failed to save Shopify Integration.');
@@ -985,10 +990,9 @@ const ShopifySettings = ({ tenantId, session }: { tenantId: string, session: any
             </label>
             <input 
               type="password" 
-              required
               value={form.webhook_secret}
               onChange={e => setForm({...form, webhook_secret: e.target.value})}
-              placeholder="Paste your Shopify Webhook HMAC Secret here" 
+              placeholder={config?.has_secret ? "Leave blank to keep current secret" : "Paste your Shopify Webhook HMAC Secret here"} 
               className="w-full bg-theme-bg border border-theme-border text-theme-text p-3 focus:outline-none focus:border-[#95BF47] transition-colors theme-button font-mono text-sm"
             />
             <p className="text-xs text-theme-text-muted font-medium mt-1">

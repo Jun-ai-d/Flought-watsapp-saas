@@ -311,9 +311,9 @@ export default function FlowBuilder() {
         <button onClick={addMessageNode} className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-theme-surface border border-theme-border text-theme-text hover:border-blue-500 transition-colors theme-button">
           <Plus size={14} /> Add Message
         </button>
-        <button onClick={addConditionNode} className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-theme-surface border border-theme-border text-theme-text hover:border-purple-500 transition-colors theme-button">
-          <Plus size={14} /> Add Condition
-        </button>
+        <span className="flex items-center gap-1 px-3 py-1.5 text-xs text-theme-text-muted border border-dashed border-theme-border theme-button" title="Condition branches are not executed yet">
+          Condition nodes — keyword → message only (coming soon)
+        </span>
       </div>
 
       <div className="flex-1 w-full h-full relative">

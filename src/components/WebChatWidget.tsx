@@ -105,6 +105,12 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
           },
         ]);
         setLoading(false);
+      } else if (data.reply) {
+        setMessages((prev) => [
+          ...prev,
+          { id: data.replyId || Date.now().toString(), text: data.reply, isBot: true },
+        ]);
+        setLoading(false);
       } else {
         pollForReply();
       }
@@ -119,12 +125,15 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
   };
 
   const pollForReply = async () => {
-    if (!tenant?.id) {
+    if (!resolvedToken) {
       setLoading(false);
       return;
     }
 
     let retries = 0;
+    const pollStartedAt = new Date().toISOString();
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
     const interval = setInterval(async () => {
       retries++;
       if (retries > 10) {
@@ -133,24 +142,27 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
         return;
       }
 
-      const { data } = await supabase
-        .from('messages')
-        .select('content, id')
-        .eq('tenant_id', tenant.id)
-        .eq('direction', 'outbound')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (data && data.length > 0) {
-        const latestMsg = data[0] as { id: string; content: string };
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === latestMsg.id)) {
-            return prev;
-          }
-          clearInterval(interval);
-          setLoading(false);
-          return [...prev, { id: latestMsg.id, text: latestMsg.content, isBot: true }];
+      try {
+        const params = new URLSearchParams({
+          widget_token: resolvedToken,
+          sessionId,
+          after: pollStartedAt,
         });
+        const res = await fetch(`${apiUrl}/api/widget/poll?${params.toString()}`);
+        const data = await res.json();
+
+        if (data.reply && data.replyId) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.replyId)) {
+              return prev;
+            }
+            clearInterval(interval);
+            setLoading(false);
+            return [...prev, { id: data.replyId, text: data.reply, isBot: true }];
+          });
+        }
+      } catch {
+        // keep polling until retry limit
       }
     }, 2000);
   };

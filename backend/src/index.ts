@@ -91,12 +91,16 @@ app.use('/webhooks', webhookLimiter, express.json({
     req.rawBody = buf;
   }
 }), webhooksRouter);
+
+// Embeddable widget may be loaded from arbitrary customer origins
+app.use('/api/widget', cors({ origin: true, credentials: false }));
+
 app.use(cors({ 
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false);
     }
   },
   credentials: true

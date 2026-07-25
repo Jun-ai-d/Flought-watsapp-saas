@@ -74,14 +74,27 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   msg.fromPhone = formatE164(msg.fromPhone);
 
   let accessToken: string | undefined;
-  if (msg.type === 'audio' && msg.mediaUrl && providerName === 'meta') {
+  const needsMetaToken =
+    providerName === 'meta' &&
+    msg.mediaUrl &&
+    ['audio', 'image', 'document', 'video'].includes(msg.type);
+
+  if (needsMetaToken) {
     const { data: bsp } = await supabaseAdmin.from('tenant_bsp_config')
       .select('access_token_encrypted')
       .eq('phone_number_id', msg.toPhoneNumberId)
       .maybeSingle();
-    if (bsp && bsp.access_token_encrypted) {
+    if (bsp?.access_token_encrypted) {
       const { decryptToken } = await import('../bsp/crypto');
       accessToken = decryptToken(bsp.access_token_encrypted);
+    }
+  }
+
+  if (msg.mediaUrl && providerName === 'meta' && ['image', 'document', 'video'].includes(msg.type) && accessToken) {
+    const { resolveMetaMediaUrl } = await import('../bsp/MetaProvider');
+    const resolvedUrl = await resolveMetaMediaUrl(msg.mediaUrl, accessToken);
+    if (resolvedUrl) {
+      msg.mediaUrl = resolvedUrl;
     }
   }
 

@@ -1,6 +1,78 @@
 import { BSPProvider, NormalizedInboundMessage, SendResult, SessionMessageContent, TemplateStatus, ProviderConfig, TemplateButton } from './BSPProvider';
 import crypto from 'crypto';
 
+/** Resolve a Meta media ID to a temporary download URL. */
+export async function resolveMetaMediaUrl(mediaId: string, accessToken: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { url?: string };
+    return data.url ?? null;
+  } catch (error) {
+    console.error('[Meta] resolveMetaMediaUrl failed:', error);
+    return null;
+  }
+}
+
+/** Upload template header media via Meta resumable upload API; returns header_handle. */
+async function uploadTemplateHeaderMedia(
+  accessToken: string,
+  appId: string,
+  headerType: 'image' | 'video' | 'document',
+  sourceUrl: string,
+): Promise<string | null> {
+  try {
+    const mediaResponse = await fetch(sourceUrl);
+    if (!mediaResponse.ok) return null;
+    const buffer = Buffer.from(await mediaResponse.arrayBuffer());
+    const mimeType = mediaResponse.headers.get('content-type') || 'application/octet-stream';
+
+    const sessionRes = await fetch(`https://graph.facebook.com/v21.0/${appId}/uploads`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        file_length: buffer.length,
+        file_type: mimeType,
+        file_name: `template-header.${headerType === 'document' ? 'pdf' : headerType === 'video' ? 'mp4' : 'jpg'}`,
+      }),
+    });
+
+    if (!sessionRes.ok) {
+      console.error('[Meta] upload session failed:', await sessionRes.text());
+      return null;
+    }
+
+    const session = (await sessionRes.json()) as { id?: string };
+    if (!session.id) return null;
+
+    const uploadRes = await fetch(`https://graph.facebook.com/v21.0/${session.id}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `OAuth ${accessToken}`,
+        file_offset: '0',
+        'Content-Type': mimeType,
+      },
+      body: buffer,
+    });
+
+    if (!uploadRes.ok) {
+      console.error('[Meta] resumable upload failed:', await uploadRes.text());
+      return null;
+    }
+
+    const uploadData = (await uploadRes.json()) as { h?: string };
+    return uploadData.h ?? null;
+  } catch (error) {
+    console.error('[Meta] uploadTemplateHeaderMedia error:', error);
+    return null;
+  }
+}
+
 export class MetaProvider implements BSPProvider {
   
   async sendSessionMessage(params: {
@@ -92,11 +164,31 @@ export class MetaProvider implements BSPProvider {
         components.push({ type: 'HEADER', format: 'TEXT', text: headerContent });
       } else {
         const format = headerType.toUpperCase();
-        components.push({
-          type: 'HEADER',
-          format,
-          example: { header_url: [headerContent] },
-        });
+        const appId = process.env.META_APP_ID;
+        let headerHandle: string | null = null;
+
+        if (appId && headerContent.startsWith('http')) {
+          headerHandle = await uploadTemplateHeaderMedia(
+            accessToken,
+            appId,
+            headerType,
+            headerContent,
+          );
+        }
+
+        if (headerHandle) {
+          components.push({
+            type: 'HEADER',
+            format,
+            example: { header_handle: [headerHandle] },
+          });
+        } else {
+          components.push({
+            type: 'HEADER',
+            format,
+            example: { header_url: [headerContent] },
+          });
+        }
       }
     }
 

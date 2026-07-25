@@ -329,15 +329,24 @@ router.get('/integrations/shopify', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('shopify_settings')
-      .select('store_url, webhook_secret, is_active')
+      .select('store_url, webhook_secret, webhook_path_token, is_active')
       .eq('tenant_id', tenantId)
       .single();
       
     if (error && error.code !== 'PGRST116') {
       throw error;
     }
+
+    if (!data) {
+      return res.json(null);
+    }
     
-    res.json(data || null);
+    res.json({
+      store_url: data.store_url,
+      is_active: data.is_active,
+      has_secret: !!data.webhook_secret,
+      webhook_path_token: data.webhook_path_token,
+    });
   } catch (error) {
     console.error('Error fetching Shopify settings:', error);
     res.status(500).json({ error: 'Failed to fetch Shopify settings' });
@@ -349,9 +358,15 @@ router.post('/integrations/shopify', async (req: Request, res: Response) => {
   const { store_url, webhook_secret, is_active } = req.body;
   
   try {
+    const { data: existing } = await supabaseAdmin
+      .from('shopify_settings')
+      .select('webhook_secret')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
     const encryptedSecret = webhook_secret ? encryptToken(webhook_secret) : null;
     
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       tenant_id: tenantId,
       store_url,
       is_active
@@ -368,8 +383,11 @@ router.post('/integrations/shopify', async (req: Request, res: Response) => {
       .single();
       
     if (error) throw error;
-    // Do not send back the secret
-    res.json({ ...data, has_secret: !!encryptedSecret });
+    res.json({
+      ...data,
+      has_secret: !!encryptedSecret || !!existing?.webhook_secret,
+      ...(encryptedSecret && webhook_secret ? { webhook_secret } : {}),
+    });
   } catch (error) {
     console.error('Error saving Shopify settings:', error);
     res.status(500).json({ error: 'Failed to save Shopify settings' });

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { supabaseAdmin } from '../lib/supabase';
 import { boss } from '../services/jobQueue';
+import { requireTenantMember, requireTenantAdminRole } from '../middleware/requireTenantMember';
 
 const router = Router();
 
@@ -20,6 +21,10 @@ function verifyShopifyWebhook(req: any, secret: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(generatedHash), Buffer.from(hmacHeader));
 }
 
+function generateWebhookSecret(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
 router.post('/webhook', async (req: any, res: any) => {
   const shopDomain = req.get('X-Shopify-Shop-Domain');
   const topic = req.get('X-Shopify-Topic');
@@ -29,7 +34,6 @@ router.post('/webhook', async (req: any, res: any) => {
   }
 
   try {
-    // Lookup integration
     const { data: integration } = await supabaseAdmin
       .from('ecommerce_integrations')
       .select('tenant_id, webhook_secret_encrypted')
@@ -42,7 +46,7 @@ router.post('/webhook', async (req: any, res: any) => {
       return res.status(401).send('Integration not found or inactive');
     }
 
-    const { decryptToken } = await import('../bsp/crypto');
+    const { decryptToken, encryptToken } = await import('../bsp/crypto');
     const secret = decryptToken(integration.webhook_secret_encrypted);
 
     if (!verifyShopifyWebhook(req, secret)) {
@@ -50,16 +54,13 @@ router.post('/webhook', async (req: any, res: any) => {
       return res.status(401).send('Unauthorized');
     }
 
-    // SRE Rule: Acknowledge early so Shopify doesn't timeout!
     res.status(200).send('OK');
 
     const tenantId = integration.tenant_id;
     const payload = req.body;
 
-    // Process asynchronously based on topic (detached from request lifecycle)
     (async () => {
       if (topic === 'carts/update') {
-        // Basic Abandoned Cart Logic
         if (payload.token) {
           await supabaseAdmin.from('abandoned_carts').upsert({
             tenant_id: tenantId,
@@ -118,8 +119,7 @@ router.post('/webhook', async (req: any, res: any) => {
   }
 });
 
-// GET Integration Details
-router.get('/:tenantId/integration', async (req: any, res: any) => {
+router.get('/:tenantId/integration', requireTenantMember, async (req: any, res: any) => {
   const { tenantId } = req.params;
   try {
     const { data: integration, error } = await supabaseAdmin
@@ -133,13 +133,10 @@ router.get('/:tenantId/integration', async (req: any, res: any) => {
       return res.status(404).json({ error: 'Integration not found' });
     }
 
-    const { decryptToken } = await import('../bsp/crypto');
-    const secret = decryptToken(integration.webhook_secret_encrypted);
-
     res.json({
       store_domain: integration.store_domain,
-      webhook_secret: secret,
-      is_active: integration.is_active
+      is_active: integration.is_active,
+      has_secret: !!integration.webhook_secret_encrypted,
     });
   } catch (error) {
     console.error('[Shopify API] Error fetching integration:', error);
@@ -147,15 +144,78 @@ router.get('/:tenantId/integration', async (req: any, res: any) => {
   }
 });
 
-// GET Dead Letter Queue (mock/simplified from job queue or a dlq table if one exists)
-router.get('/:tenantId/dlq', async (req: any, res: any) => {
-  // In a real app we would query pgBoss 'archive' or a dedicated DLQ table.
-  // We'll return an empty array for now since there isn't a dedicated dlq table in the schema.
+router.post('/:tenantId/integration', requireTenantMember, requireTenantAdminRole, async (req: any, res: any) => {
+  const { tenantId } = req.params;
+  const { store_domain, is_active = true } = req.body;
+
+  if (!store_domain) {
+    return res.status(400).json({ error: 'store_domain is required' });
+  }
+
+  try {
+    const { encryptToken } = await import('../bsp/crypto');
+    const plaintextSecret = generateWebhookSecret();
+
+    const { data, error } = await supabaseAdmin
+      .from('ecommerce_integrations')
+      .upsert({
+        tenant_id: tenantId,
+        platform: 'shopify',
+        store_domain,
+        webhook_secret_encrypted: encryptToken(plaintextSecret),
+        is_active,
+      }, { onConflict: 'tenant_id, platform' })
+      .select('store_domain, is_active')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      ...data,
+      webhook_secret: plaintextSecret,
+      has_secret: true,
+    });
+  } catch (error) {
+    console.error('[Shopify API] Error creating integration:', error);
+    res.status(500).json({ error: 'Failed to create integration' });
+  }
+});
+
+router.post('/:tenantId/integration/rotate-secret', requireTenantMember, requireTenantAdminRole, async (req: any, res: any) => {
+  const { tenantId } = req.params;
+
+  try {
+    const { encryptToken } = await import('../bsp/crypto');
+    const plaintextSecret = generateWebhookSecret();
+
+    const { data, error } = await supabaseAdmin
+      .from('ecommerce_integrations')
+      .update({ webhook_secret_encrypted: encryptToken(plaintextSecret) })
+      .eq('tenant_id', tenantId)
+      .eq('platform', 'shopify')
+      .select('store_domain, is_active')
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    res.json({
+      ...data,
+      webhook_secret: plaintextSecret,
+      has_secret: true,
+    });
+  } catch (error) {
+    console.error('[Shopify API] Error rotating secret:', error);
+    res.status(500).json({ error: 'Failed to rotate webhook secret' });
+  }
+});
+
+router.get('/:tenantId/dlq', requireTenantMember, async (_req: any, res: any) => {
   res.json([]);
 });
 
-// GET Cart Recovery Stats
-router.get('/:tenantId/carts/stats', async (req: any, res: any) => {
+router.get('/:tenantId/carts/stats', requireTenantMember, async (req: any, res: any) => {
   const { tenantId } = req.params;
   try {
     const { data: carts, error } = await supabaseAdmin

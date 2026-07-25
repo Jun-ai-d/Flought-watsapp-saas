@@ -19,6 +19,8 @@ const Inbox: React.FC = () => {
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [replyText, setReplyText] = useState('');
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
   
   // Template state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -67,12 +69,39 @@ const Inbox: React.FC = () => {
         .from('messages')
         .select('*')
         .eq('conversation_id', selectedId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
-      return data || [];
+      const page = data || [];
+      setHasMoreMessages(page.length === 100);
+      return page.reverse();
     },
     enabled: !!selectedId,
   });
+
+  const loadOlderMessages = async () => {
+    if (!selectedId || loadingOlderMessages || messages.length === 0) return;
+    setLoadingOlderMessages(true);
+    try {
+      const oldest = messages[0]?.created_at;
+      if (!oldest) return;
+
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', selectedId)
+        .lt('created_at', oldest)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      const older = (data || []).reverse();
+      setHasMoreMessages((data || []).length === 100);
+      queryClient.setQueryData(['messages', selectedId], (old: any[] = []) => [...older, ...old]);
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  };
 
   const { data: quickReplies = [] } = useQuery<any[]>({
     queryKey: ['quick_replies', tenant?.id],
@@ -613,7 +642,17 @@ const Inbox: React.FC = () => {
               : "bg-brand-accent border-brand-accent text-white rounded-tl-xl rounded-tr-xl rounded-bl-xl"
         )}>
           {msg.is_internal && <div className="text-[10px] font-bold text-yellow-600 uppercase tracking-wider mb-1 flex items-center gap-1"><AlertCircle size={10} /> Internal Note</div>}
-          {msg.content || '(Unsupported message type)'}
+          {msg.message_type === 'image' && msg.media_url ? (
+            <a href={msg.media_url} target="_blank" rel="noreferrer">
+              <img src={msg.media_url} alt="Image attachment" className="max-w-full rounded-md max-h-64 object-contain" />
+            </a>
+          ) : msg.message_type === 'document' && msg.media_url ? (
+            <a href={msg.media_url} target="_blank" rel="noreferrer" className="underline font-medium">
+              {msg.content || 'View document'}
+            </a>
+          ) : (
+            msg.content || '(Unsupported message type)'
+          )}
         </div>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-xs text-theme-text-muted font-medium">{formatTime(msg.created_at)}</span>
@@ -790,6 +829,18 @@ const Inbox: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+              {hasMoreMessages && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={loadOlderMessages}
+                    disabled={loadingOlderMessages}
+                    className="text-xs font-bold text-brand-accent hover:underline disabled:opacity-50"
+                  >
+                    {loadingOlderMessages ? 'Loading older messages…' : 'Load older messages'}
+                  </button>
+                </div>
+              )}
               {memoizedMessages}
             </div>
 
