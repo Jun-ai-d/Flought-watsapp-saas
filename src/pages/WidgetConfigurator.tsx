@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { RefreshCw, Code, Check, Globe, BookOpen, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { WebChatWidget } from '../components/WebChatWidget';
+import { useTrialStatus } from '../hooks/useTrialStatus';
+import { Link } from 'react-router-dom';
 
 type WidgetConfig = {
   widget_token: string | null;
@@ -21,6 +23,7 @@ function getApiUrl() {
 
 export default function WidgetConfigurator() {
   const { tenant } = useAuth();
+  const trial = useTrialStatus();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
 
@@ -104,6 +107,19 @@ export default function WidgetConfigurator() {
           <Globe className="text-brand-accent" /> Chat Widget Configurator
         </h1>
         <p className="text-theme-text-muted mt-2">Customize and embed the web chat widget on your own website.</p>
+        {trial?.blockBotReplies && (
+          <div className="mt-4 flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-700">
+            <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+            <p>
+              Your trial has ended or reached its conversation limit. Visitors will see a paused message — bot
+              replies resume after you{' '}
+              <Link to="/billing" className="font-bold underline">
+                upgrade on Usage &amp; Billing
+              </Link>
+              . You can still configure and preview the widget here.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
@@ -172,12 +188,12 @@ export default function WidgetConfigurator() {
                 <strong className="text-theme-text">Human handover</strong> — &quot;talk to agent&quot; or low confidence
               </li>
             </ol>
-            {tenant?.plan_type === 'trial' && (
+            {trial?.enforceSetupCaps && !trial.blockBotReplies && (
               <div className="mt-4 flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
                 <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0 mt-0.5" />
                 <p className="text-yellow-700">
-                  Trial accounts: widget chat counts toward your conversation limit. Visitors see a limit message when
-                  the trial cap is reached.
+                  Trial accounts: widget chat counts toward your {tenant?.trial_conversations_limit ?? 100}{' '}
+                  conversation limit.
                 </p>
               </div>
             )}

@@ -15,6 +15,7 @@ import {
   uploadVoiceNote,
   type VoiceReplySettings,
 } from '../llm/tts';
+import { fetchTenantTrialContext, shouldBlockBotReplies } from '../../lib/trialStatus';
 
 // In-memory lock to prevent race conditions when a user sends rapid-fire messages.
 // This ensures that concurrent webhooks for the same conversation are processed sequentially.
@@ -69,6 +70,16 @@ export async function processAutomationPipeline(
       // This updates the conversation state in Postgres and sends an alert to the tenant dashboard.
       await triggerHandover(tenantId, conversationId, 'explicit_request', messageText);
       return; // Fast exit!
+    }
+
+    /**
+     * Note 2.5: Trial expiry (Gate 1.25)
+     * Block automated bot replies when trial is expired or capped, unless tenant has a paid subscription.
+     */
+    const trialCtx = await fetchTenantTrialContext(tenantId);
+    if (shouldBlockBotReplies(trialCtx.tenant, trialCtx.subscription)) {
+      console.log(`[Pipeline] Trial exhausted for tenant ${tenantId}. Skipping bot reply.`);
+      return;
     }
 
     /**

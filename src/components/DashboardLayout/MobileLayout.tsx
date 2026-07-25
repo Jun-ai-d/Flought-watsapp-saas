@@ -5,9 +5,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
-import { AlertTriangle, Clock, Info } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WebChatWidget } from '../WebChatWidget';
+import { TrialBanner } from '../TrialBanner';
 
 const MobileLayout: React.FC = () => {
   const { user, tenant, signOut, isPlatformAdmin } = useAuth();
@@ -88,27 +89,8 @@ const MobileLayout: React.FC = () => {
           </div>
         )}
 
-        {tenant?.plan_type === 'trial' && (
-          <div className={cn(
-            "border-b px-4 py-2 flex items-center justify-between gap-3 shrink-0 text-xs",
-            tenant.trial_conversations_used! >= tenant.trial_conversations_limit!
-              ? "bg-red-500/10 border-red-500/20 text-red-600"
-              : tenant.trial_conversations_used! >= tenant.trial_conversations_limit! * 0.8
-                ? "bg-amber-500/10 border-amber-500/20 text-amber-700"
-                : "bg-blue-500/10 border-blue-500/20 text-blue-700"
-          )}>
-            <div className="flex items-center gap-2 min-w-0">
-              {tenant.trial_conversations_used! >= tenant.trial_conversations_limit! ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <Info className="w-4 h-4 shrink-0" />}
-              <span className="truncate font-medium">
-                {tenant.trial_conversations_used}/{tenant.trial_conversations_limit} msgs used.
-              </span>
-            </div>
-            <Link to="/billing" className="font-bold whitespace-nowrap hover:underline shrink-0">
-              Upgrade
-            </Link>
-          </div>
-        )}
-        
+        <TrialBanner compact />
+
         {/* Adjusted padding: pb-24 ensures content isn't hidden behind the bottom tab bar */}
         <div className={cn("flex-1 overflow-y-auto pb-24", location.pathname.startsWith('/inbox') ? "p-0" : "p-4")}>
           <Outlet />

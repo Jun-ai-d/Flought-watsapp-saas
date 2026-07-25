@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { processAutomationPipeline } from '../services/automation/pipeline';
+import {
+  fetchTenantTrialContext,
+  shouldBlockBotReplies,
+  TRIAL_BOT_BLOCKED_MESSAGE,
+} from '../lib/trialStatus';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -86,16 +91,13 @@ router.post('/chat', widgetLimiter, async (req: any, res: any) => {
       return res.status(404).json({ error: 'Service not available' });
     }
 
-    if (tenant.plan_type === 'trial') {
-      const isExpired = new Date() > new Date(tenant.trial_expires_at);
-      const isLimitReached = tenant.trial_conversations_used >= tenant.trial_conversations_limit;
-
-      if (isExpired || isLimitReached) {
-        return res.json({
-          success: false,
-          reply: 'This business is currently on a trial plan and has reached its testing limit. Please contact them directly.',
-        });
-      }
+    const { subscription } = await fetchTenantTrialContext(tenantId);
+    if (shouldBlockBotReplies(tenant, subscription)) {
+      return res.status(403).json({
+        success: false,
+        error: 'trial_exhausted',
+        reply: TRIAL_BOT_BLOCKED_MESSAGE,
+      });
     }
 
     let isNewSession = false;

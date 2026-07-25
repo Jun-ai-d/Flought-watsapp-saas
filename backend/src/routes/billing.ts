@@ -180,6 +180,12 @@ router.post('/webhook', async (req: Request, res: Response) => {
             price_inr: payment.amount / 100,
             cap_messages: capMessages
           }, { onConflict: 'tenant_id' });
+
+          // Sync plan_type so trial caps/banners clear after payment
+          await supabaseAdmin
+            .from('tenants')
+            .update({ plan_type: planName })
+            .eq('id', tenantId);
         }
         break;
       }

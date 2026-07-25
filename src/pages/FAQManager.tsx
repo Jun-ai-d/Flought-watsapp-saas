@@ -4,6 +4,7 @@ import { Plus, Search, Trash2, Edit2, X, Check, Sparkles, XCircle } from 'lucide
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { useTrialStatus } from '../hooks/useTrialStatus';
 
 type FaqStatus = 'published' | 'draft' | 'rejected';
 type FaqTab = 'published' | 'suggestions' | 'rejected';
@@ -22,6 +23,7 @@ interface FAQ {
 const FAQManager: React.FC = () => {
   const queryClient = useQueryClient();
   const { tenant } = useAuth();
+  const trial = useTrialStatus();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<FaqTab>('published');
 
@@ -180,7 +182,7 @@ const FAQManager: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {tenant?.plan_type === 'trial' && (
+          {trial?.enforceSetupCaps && (
             <span className="px-3 py-1 bg-brand-accent/10 text-brand-accent font-bold rounded-full text-sm whitespace-nowrap">
               Trial Limit: {publishedCount}/10
             </span>
@@ -188,7 +190,7 @@ const FAQManager: React.FC = () => {
           <button
             className="px-6 py-3 bg-brand-accent text-white font-bold hover:bg-brand-accent-light transition-colors flex items-center gap-2 theme-button shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleOpenModal()}
-            disabled={tenant?.plan_type === 'trial' && publishedCount >= 10}
+            disabled={trial?.enforceSetupCaps && publishedCount >= 10}
           >
             <Plus size={18} /> Add New FAQ
           </button>

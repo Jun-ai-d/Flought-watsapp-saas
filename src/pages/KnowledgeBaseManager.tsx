@@ -4,6 +4,7 @@ import { Upload, File, Trash2, CheckCircle, AlertTriangle, Eye, RefreshCw } from
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { useTrialStatus } from '../hooks/useTrialStatus';
 
 interface KBDocument {
   id: string;
@@ -29,6 +30,7 @@ function isStuckProcessing(doc: KBDocument): boolean {
 const KnowledgeBaseManager: React.FC = () => {
   const queryClient = useQueryClient();
   const { tenant } = useAuth();
+  const trial = useTrialStatus();
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -53,7 +55,7 @@ const KnowledgeBaseManager: React.FC = () => {
   const { data: docs = [], isLoading: loading, error: loadError, refetch } = useQuery<KBDocument[]>({
     queryKey: ['kb-docs', tenant?.id],
     queryFn: async () => {
-      if (tenant?.plan_type === 'trial') {
+      if (trial?.enforceSetupCaps) {
         await supabase.rpc('reconcile_trial_kb_doc_count', { p_tenant_id: tenant.id } as never);
       }
 
@@ -138,7 +140,7 @@ const KnowledgeBaseManager: React.FC = () => {
   const processFile = async (file: File) => {
     if (!tenant) return;
 
-    if (tenant.plan_type === 'trial') {
+    if (trial?.enforceSetupCaps) {
       if (docs.length >= 1) {
         alert('Trial plans are limited to 1 document.');
         return;
@@ -235,7 +237,7 @@ const KnowledgeBaseManager: React.FC = () => {
             Upload documents for the AI to reference when a specific FAQ isn't found.
           </p>
         </div>
-        {tenant?.plan_type === 'trial' && (
+        {trial?.enforceSetupCaps && (
           <div className="text-right">
             <span className="inline-block px-3 py-1 bg-brand-accent/10 text-brand-accent font-bold rounded-full text-sm">
               Trial Limit: {docs.length}/1
@@ -266,7 +268,7 @@ const KnowledgeBaseManager: React.FC = () => {
             <h3 className="text-xl font-display font-bold text-theme-text mb-2">Add Document</h3>
             <p className="text-sm text-theme-text-muted mb-6">Supported formats: PDF, TXT (Max 10MB)</p>
 
-            {tenant?.plan_type === 'trial' && docs.length >= 1 ? (
+            {trial?.enforceSetupCaps && docs.length >= 1 ? (
               <div
                 className="border-2 border-dashed border-red-500/30 bg-red-500/5 p-8 text-center"
                 style={{ borderRadius: 'var(--radius-card)' }}

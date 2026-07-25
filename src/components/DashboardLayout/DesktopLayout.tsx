@@ -5,8 +5,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
-import { AlertTriangle, Clock, Info } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { WebChatWidget } from '../WebChatWidget';
+import { TrialBanner } from '../TrialBanner';
 
 const DesktopLayout: React.FC = () => {
   const { user, tenant, signOut, isPlatformAdmin } = useAuth();
@@ -145,28 +146,8 @@ const DesktopLayout: React.FC = () => {
           </div>
         )}
 
-        {tenant?.plan_type === 'trial' && (
-          <div className={cn(
-            "border-b px-4 py-2.5 flex items-center justify-between gap-3 shrink-0 text-xs md:text-sm",
-            tenant.trial_conversations_used! >= tenant.trial_conversations_limit!
-              ? "bg-red-500/10 border-red-500/20 text-red-600"
-              : tenant.trial_conversations_used! >= tenant.trial_conversations_limit! * 0.8
-                ? "bg-amber-500/10 border-amber-500/20 text-amber-700"
-                : "bg-blue-500/10 border-blue-500/20 text-blue-700"
-          )}>
-            <div className="flex items-center gap-2 min-w-0">
-              {tenant.trial_conversations_used! >= tenant.trial_conversations_limit! ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <Info className="w-4 h-4 shrink-0" />}
-              <span className="truncate font-medium">
-                Free Trial: {tenant.trial_conversations_used}/{tenant.trial_conversations_limit} conversations used. 
-                {new Date() > new Date(tenant.trial_expires_at!) ? " Trial expired." : ` Expires ${new Date(tenant.trial_expires_at!).toLocaleDateString()}.`}
-              </span>
-            </div>
-            <Link to="/billing" className="font-bold whitespace-nowrap hover:underline shrink-0">
-              Upgrade Now
-            </Link>
-          </div>
-        )}
-        
+        <TrialBanner />
+
         <div className="flex-1 overflow-y-auto p-4 pb-20 md:p-8 md:pb-8">
           <Outlet />
         </div>
