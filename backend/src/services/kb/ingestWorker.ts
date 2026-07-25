@@ -1,4 +1,4 @@
-import { boss } from '../jobQueue';
+import { boss, isJobQueueReady } from '../jobQueue';
 import { supabaseAdmin } from '../../lib/supabase';
 import { getEmbedding } from './embeddings';
 import { parsePlainText } from './parsers/txt';
@@ -8,6 +8,7 @@ import { chunkDocument } from './chunker';
 export type KbIngestJob = { tenantId: string; documentId: string };
 
 const QUEUE = 'kb-ingest';
+const STUCK_MS = 10 * 60 * 1000;
 const ALLOWED_EXT = new Set(['txt', 'md', 'pdf']);
 const MAX_BYTES = 10 * 1024 * 1024;
 const EMBED_BATCH_SIZE = 20;
@@ -136,16 +137,22 @@ export async function enqueueKbIngest(tenantId: string, documentId: string) {
 }
 
 async function enqueueStuckProcessingDocuments() {
+  const cutoff = new Date(Date.now() - STUCK_MS).toISOString();
   const { data } = await supabaseAdmin
     .from('knowledge_documents')
     .select('id, tenant_id')
     .eq('status', 'processing')
     .not('file_path', 'is', null)
+    .lt('uploaded_at', cutoff)
     .limit(50);
 
   for (const row of data || []) {
     await enqueueKbIngest(row.tenant_id, row.id);
   }
+}
+
+export function getKbIngestHealth() {
+  return { jobQueueReady: isJobQueueReady(), queue: QUEUE };
 }
 
 export async function initKbIngestWorker() {
@@ -166,5 +173,10 @@ export async function initKbIngestWorker() {
   });
 
   await enqueueStuckProcessingDocuments();
+  await boss.schedule('kb-retry-stuck', '*/15 * * * *');
+  await boss.work('kb-retry-stuck', async () => {
+    await enqueueStuckProcessingDocuments();
+  });
+
   console.log('[kb-ingest] Worker ready');
 }

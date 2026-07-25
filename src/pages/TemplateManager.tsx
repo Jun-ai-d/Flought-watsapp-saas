@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, CheckCircle, Clock, XCircle, X, Upload } from 'lucide-react';
+import { Plus, CheckCircle, Clock, XCircle, X, Upload, File } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -217,15 +217,16 @@ const TemplateManager: React.FC = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="theme-card p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+          <div className="theme-card p-8 w-full max-w-5xl max-h-[90vh] overflow-y-auto relative">
             <div className="flex justify-between items-center mb-6 border-b border-theme-border pb-4">
               <h2 className="text-2xl font-display font-bold text-theme-text">Create Template</h2>
               <button onClick={() => setShowModal(false)} className="text-theme-text-muted hover:text-theme-text transition-colors">
                 <X size={24} />
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-bold text-theme-text-muted mb-2">Template Name</label>
                 <input 
@@ -280,6 +281,13 @@ const TemplateManager: React.FC = () => {
                   <option value="video">Video</option>
                   <option value="document">Document</option>
                 </select>
+                {isMediaHeader && (
+                  <p className="text-xs text-theme-text-muted mb-2">
+                    {headerType === 'image' && 'Upload a JPG or PNG (recommended under 5MB). Meta requires a public HTTPS URL.'}
+                    {headerType === 'video' && 'Upload MP4 (recommended under 16MB). Meta requires a public HTTPS URL.'}
+                    {headerType === 'document' && 'Upload PDF or Office doc. Meta requires a public HTTPS URL.'}
+                  </p>
+                )}
                 {headerType === 'text' && (
                   <input 
                     type="text" 
@@ -327,7 +335,16 @@ const TemplateManager: React.FC = () => {
                       placeholder="Or paste a public HTTPS URL"
                       className="w-full p-3 border border-theme-border bg-theme-bg text-theme-text focus:border-brand-accent focus:outline-none theme-button"
                     />
-                    {headerContent && (
+                    {headerContent && headerType === 'image' && (
+                      <img src={headerContent} alt="Header preview" className="max-h-32 rounded border border-theme-border object-cover" />
+                    )}
+                    {headerContent && headerType === 'video' && (
+                      <video src={headerContent} controls className="max-h-32 rounded border border-theme-border w-full" />
+                    )}
+                    {headerContent && headerType === 'document' && (
+                      <p className="text-xs text-green-600 truncate">Document URL ready</p>
+                    )}
+                    {headerContent && headerType !== 'image' && headerType !== 'video' && headerType !== 'document' && (
                       <p className="text-xs text-green-600 truncate">Media URL ready</p>
                     )}
                   </div>
@@ -418,6 +435,45 @@ const TemplateManager: React.FC = () => {
                 </button>
               </div>
             </form>
+
+            <div className="lg:sticky lg:top-0">
+              <p className="text-sm font-bold text-theme-text-muted mb-3 uppercase tracking-wider">WhatsApp Preview</p>
+              <div className="bg-[#e5ddd5] rounded-xl p-4 min-h-[320px]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d4cdc4\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}>
+                <div className="bg-white rounded-lg shadow-sm max-w-[280px] ml-auto overflow-hidden text-sm">
+                  {headerType === 'text' && headerContent && (
+                    <div className="px-3 pt-3 font-bold text-gray-900">{headerContent}</div>
+                  )}
+                  {headerType === 'image' && headerContent && (
+                    <img src={headerContent} alt="" className="w-full max-h-40 object-cover" />
+                  )}
+                  {headerType === 'video' && headerContent && (
+                    <video src={headerContent} className="w-full max-h-40 object-cover bg-black" />
+                  )}
+                  {headerType === 'document' && headerContent && (
+                    <div className="px-3 pt-3 flex items-center gap-2 text-blue-600">
+                      <File size={16} /> Document attached
+                    </div>
+                  )}
+                  <div className="px-3 py-2 text-gray-800 whitespace-pre-wrap break-words">
+                    {body || 'Your message body will appear here…'}
+                  </div>
+                  {footer && (
+                    <div className="px-3 pb-1 text-xs text-gray-500">{footer}</div>
+                  )}
+                  <div className="px-3 pb-2 text-[10px] text-gray-400 text-right">12:00</div>
+                  {buttons.length > 0 && (
+                    <div className="border-t border-gray-200">
+                      {buttons.map((btn, i) => (
+                        <div key={i} className="text-center py-2 text-blue-500 font-medium border-t border-gray-100 first:border-t-0 text-sm">
+                          {btn.text || 'Button'}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
       )}

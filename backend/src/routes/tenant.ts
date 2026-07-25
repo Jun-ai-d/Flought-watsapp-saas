@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { encryptToken } from '../bsp/crypto';
-import { enqueueKbIngest } from '../services/kb/ingestWorker';
+import { enqueueKbIngest, getKbIngestHealth } from '../services/kb/ingestWorker';
 
 const router = Router();
 
@@ -527,6 +527,18 @@ router.post('/kb/documents/:id/ingest', async (req: Request, res: Response) => {
 
   await enqueueKbIngest(tenantId, documentId);
   return res.json({ ok: true, documentId });
+});
+
+/** GET /api/tenant/kb/health — pg-boss availability for indexing */
+router.get('/kb/health', async (_req: Request, res: Response) => {
+  const health = getKbIngestHealth();
+  return res.json({
+    ok: health.jobQueueReady,
+    ...health,
+    message: health.jobQueueReady
+      ? 'Background indexing is available'
+      : 'DATABASE_URL unset or pg-boss failed to start — uploads will stay in Processing',
+  });
 });
 
 export default router;

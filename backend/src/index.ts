@@ -184,6 +184,8 @@ import { initCartRecoveryWorker } from './services/ecommerce/cartRecoveryWorker'
 import { initOrderSyncWorker } from './services/ecommerce/orderSyncWorker';
 import { initSLAWorker } from './services/automation/slaWorker';
 import { initKbIngestWorker } from './services/kb/ingestWorker';
+import { initAutoFaqMinerWorker } from './services/kb/autoFaqMiner';
+import { initFaqRevalidationWorker } from './services/kb/faqRevalidation';
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`🚀 Backend server running on http://0.0.0.0:${PORT}`);
@@ -210,6 +212,8 @@ app.listen(Number(PORT), '0.0.0.0', () => {
       initOrderSyncWorker();
       await initSLAWorker();
       await initKbIngestWorker();
+      await initAutoFaqMinerWorker();
+      await initFaqRevalidationWorker();
     } catch (error) {
       console.error('Failed to initialize background job workers', { error });
     }
