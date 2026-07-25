@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import anime from 'animejs';
+import { useDeferredMount } from '../../../hooks/useDeferredMount';
 
 const HeroPipeline = lazy(() => import('../../../components/3d/HeroPipeline'));
 
@@ -44,6 +45,7 @@ const TiltCard = ({ children, className }: { children: React.ReactNode, classNam
 const HeroSection = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLHeadingElement>(null);
+  const show3d = useDeferredMount();
 
   useEffect(() => {
     if (textRef.current) {
@@ -149,9 +151,13 @@ const HeroSection = () => {
           </div>
 
           <div className="hero-3d relative lg:h-[700px] flex items-center justify-center z-50">
-            <Suspense fallback={<div className="w-full h-full min-h-[500px]" />}>
-              <HeroPipeline queryVolume={1000} percentSolved={0.8} />
-            </Suspense>
+            {show3d ? (
+              <Suspense fallback={<div className="w-full h-full min-h-[500px]" />}>
+                <HeroPipeline queryVolume={1000} percentSolved={0.8} />
+              </Suspense>
+            ) : (
+              <div className="w-full h-full min-h-[500px]" aria-hidden="true" />
+            )}
           </div>
 
         </div>

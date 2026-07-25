@@ -3,7 +3,6 @@ import { Routes, Route, Outlet } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './contexts/AuthContext';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 // Marketing Pages
 const MarketingLayout = lazy(() => import('./components/MarketingLayout'));
@@ -48,11 +47,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const AuthLayout = () => (
-  <AuthProvider>
-    <Outlet />
-  </AuthProvider>
-);
+const AuthLayout = () => <Outlet />;
 
 function App() {
   return (

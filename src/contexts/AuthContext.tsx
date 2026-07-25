@@ -74,7 +74,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTenant(next);
   };
 
-  const fetchTenantContext = async (userId: string) => {
+  const fetchPlatformAdmin = async (accessToken: string) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/admin/check`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setIsPlatformAdmin(!!body.isPlatformAdmin);
+      } else {
+        setIsPlatformAdmin(false);
+      }
+    } catch {
+      setIsPlatformAdmin(false);
+    }
+  };
+
+  const fetchTenantContext = async (userId: string, accessToken?: string) => {
     const supabase = requireSupabase();
     const { data, error } = await supabase
       .from('tenant_users')
@@ -99,47 +116,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTenant(preferred);
     }
 
-    try {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      if (currentSession) {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-        const res = await fetch(`${apiUrl}/api/admin/check`, {
-          headers: { Authorization: `Bearer ${currentSession.access_token}` },
-        });
-        if (res.ok) {
-          const body = await res.json();
-          setIsPlatformAdmin(!!body.isPlatformAdmin);
-        } else {
-          setIsPlatformAdmin(false);
-        }
-      }
-    } catch {
+    // Non-blocking — admin badge is not needed for first paint
+    if (accessToken) {
+      void fetchPlatformAdmin(accessToken);
+    } else {
       setIsPlatformAdmin(false);
     }
   };
 
   useEffect(() => {
     const supabase = requireSupabase();
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      if (initialSession?.user) {
-        fetchTenantContext(initialSession.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
+
       if (nextSession?.user) {
-        setLoading(true);
-        fetchTenantContext(nextSession.user.id).finally(() => setLoading(false));
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          setLoading(true);
+          fetchTenantContext(nextSession.user.id, nextSession.access_token).finally(() =>
+            setLoading(false),
+          );
+        }
       } else {
         setTenant(null);
         setTenants([]);

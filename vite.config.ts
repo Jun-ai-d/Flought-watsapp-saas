@@ -12,5 +12,20 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei']
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('three') || id.includes('@react-three')) return 'three-vendor';
+          if (id.includes('recharts') || id.includes('d3-')) return 'charts';
+          if (id.includes('@xyflow')) return 'xyflow';
+          if (id.includes('@supabase')) return 'supabase';
+          if (id.includes('framer-motion')) return 'motion';
+          if (id.includes('@tanstack/react-query')) return 'query';
+        },
+      },
+    },
+  },
 })

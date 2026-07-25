@@ -1,8 +1,7 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from './lib/queryClient'
 import { isFrontendConfigured } from './lib/env'
 import ConfigError from './components/ConfigError'
@@ -11,6 +10,12 @@ import { AuthProvider } from './contexts/AuthContext.tsx'
 import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
+
+const LazyReactQueryDevtools = lazy(() =>
+  import('@tanstack/react-query-devtools').then((m) => ({
+    default: m.ReactQueryDevtools,
+  })),
+)
 
 const rootEl = document.getElementById('root')
 if (!rootEl) {
@@ -46,7 +51,11 @@ try {
               </AuthProvider>
             </HelmetProvider>
           </BrowserRouter>
-          {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+          {import.meta.env.DEV ? (
+            <Suspense fallback={null}>
+              <LazyReactQueryDevtools initialIsOpen={false} />
+            </Suspense>
+          ) : null}
         </QueryClientProvider>
       </React.StrictMode>,
     )
