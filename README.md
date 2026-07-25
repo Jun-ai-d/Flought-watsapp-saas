@@ -1,106 +1,241 @@
-# WhatsApp AI SaaS Platform (Flought)
+# Flought — WhatsApp AI Support SaaS
 
-A highly scalable, multi-tenant SaaS platform that empowers businesses to automate their customer support on WhatsApp using an enterprise-grade AI (RAG) engine, featuring seamless human-agent handovers.
-
-This repository contains the complete monolithic codebase (Frontend + Backend) for the SaaS, built with modern, aggressive performance optimizations and strict tenant data isolation.
+Multi-tenant B2B SaaS that connects businesses to **WhatsApp** (Meta Cloud API and optional Gupshup BSP), automates replies with **RAG**, and hands complex conversations to human agents. One codebase supports **cloud deployment (Vercel + Render)** and **self-hosted Docker Compose / Coolify** on a VPS.
 
 ---
 
-## ✨ SaaS Platform Features
+## Overview
 
-Designed for Business Solution Providers (BSPs) to offer white-labeled WhatsApp AI support to thousands of businesses simultaneously.
+**Flought** (this repo) is the full stack for a WhatsApp Business Solution Provider style product:
 
-### 🏢 Multi-Tenancy & Security
-*   **Row Level Security (RLS):** Every Postgres table is strictly locked down. A business (tenant) can only ever query, read, or modify their own customers' data.
-*   **Platform Admin Dashboard:** A hidden super-admin panel allows the SaaS owner to provision new tenants, monitor global usage, and enforce subscription tiers.
-*   **Tier Enforcement:** Built-in quota limits per subscription tier (e.g., Free, Pro, Enterprise). If a tenant runs out of AI credits, the system gracefully falls back to Human Only mode until they upgrade.
-*   **Meta BSP Compliance:** Fully compliant with Meta's strict WhatsApp API guidelines, including built-in Data Deletion callbacks, Terms of Service, Privacy Policies, and opt-out flows.
+- Tenants connect WhatsApp numbers, upload knowledge, configure flows, and manage an agent inbox.
+- Inbound messages hit an Express API, run through a **waterfall automation pipeline** (FAQ → flows → hybrid retrieval → LLM), and optionally escalate to humans.
+- **Supabase** provides Auth, Postgres, Row Level Security (RLS), Storage, Realtime, and **pgvector** for embeddings.
+- Background work (campaigns, KB ingest, SLA, auto-FAQ mining) runs via **pg-boss** inside the backend process.
 
-### 👥 Human-Agent Collaboration Inbox
-*   **Real-time WebSockets:** The React frontend uses Supabase Realtime to stream incoming WhatsApp messages to human agents instantly.
-*   **Agent Presence & Claiming:** Multiple agents can work in the same inbox. A "Claim" system prevents two agents from replying to the same customer.
-*   **Optimistic UI:** When an agent sends a message, it appears instantly in the UI with a "Pending" tick, updating to "Delivered" or "Read" based on WhatsApp webhook receipts.
+For deeper internals, see [ARCHITECTURE.md](./ARCHITECTURE.md) and [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
 
 ---
 
-## 🧠 The "Ultimate RAG" Engine
+## Tech stack
 
-This platform goes beyond naive vector search. It features an advanced, heavily optimized AI pipeline designed to minimize LLM token costs while maximizing response accuracy.
-
-### 1. Adaptive Agent Router (`gpt-4o-mini`)
-Instead of blindly running expensive RAG pipelines for every message, an ultra-fast routing model classifies incoming messages:
-*   **Conversational:** Instantly replies to "Hello", "Thanks", or "Goodbye" without searching the database.
-*   **Actionable:** Recognizes requests like "Cancel my order" and triggers specific workflows or hands the conversation over to a human.
-*   **Knowledge:** Routes complex questions to the RAG pipeline.
-*   **Split-Intent Handling:** If a user says *"Cancel my order AND what are your hours?"*, the router detects an array of intents and processes both simultaneously.
-
-### 2. Zero-Latency Semantic Caching
-To drastically reduce OpenAI API costs, we built a Semantic Cache using `pgvector` (`hnsw` index):
-*   When a user asks a question, the system vectorizes it and checks the cache.
-*   If anyone asked a highly similar question recently (Cosine Similarity > 0.95), the bot instantly returns the cached AI response, costing **zero** LLM generation tokens.
-*   **Cross-Lingual Support:** The Agent Router automatically translates inbound questions to English in the background, ensuring a Spanish question and an Arabic question both successfully hit the same English cached response.
-*   **Poisoning Prevention:** All AI responses run through OpenAI's `moderations` API before caching, ensuring hackers cannot inject malicious responses into the shared semantic cache.
-
-### 3. Auto-FAQ Miner (Self-Learning)
-The bot gets smarter over time automatically.
-*   A nightly cron job (`runAutoFaqMiner`) scans the last 7 days of chat logs across all tenants.
-*   It identifies high-frequency questions (asked 3+ times).
-*   It uses the LLM to generate the perfect, canonical answer and saves it to the database as a `Draft`.
-*   Tenant Admins click "Approve" in their dashboard, instantly upgrading it to a hardcoded FAQ, completely bypassing expensive RAG generation for future identical queries while preventing AI hallucination loops.
-
-### 4. Hybrid Search (Vector + BM25)
-Standard Vector Search is bad at finding exact product numbers (SKUs) or order IDs. 
-*   We use a custom Postgres RPC to perform **Reciprocal Rank Fusion (RRF)**.
-*   It combines `pgvector` semantic meaning with `BM25` exact-keyword matching.
-*   **Typo Blindness Fix:** The router automatically strips hyphens and spaces from product codes (e.g., `SKU-123` -> `sku123`) to ensure BM25 always finds the right document.
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 19, Vite, React Router, Tailwind CSS v4, Radix UI, TanStack Query |
+| Backend | Node.js 20+, Express, TypeScript |
+| Data & auth | Supabase (Postgres, RLS, Auth, Storage, Realtime, pgvector) |
+| Queue / workers | pg-boss (same Node process as API) |
+| WhatsApp | Meta Cloud API (MetaProvider); Gupshup supported in BSP layer |
+| AI | OpenAI-compatible API (chat, embeddings); optional Cohere rerank |
+| Billing | Razorpay subscriptions and webhooks |
+| Deploy (cloud) | Vercel (SPA), Render (Node backend) — see ercel.json, 
+ender.yaml |
+| Deploy (VPS) | Docker Compose: Nginx frontend + Node/ffmpeg backend — see [Coolify dual-deploy plan](./docs/superpowers/plans/2026-07-25-coolify-dual-deploy.md) |
 
 ---
 
-## 🚀 Quick Start (Development)
+## Features
 
-```bash
-# Install dependencies
+- **Knowledge base & RAG** — PDF/TXT ingest workers, chunking, embeddings, optional rerank; hybrid **vector + BM25 (RRF)** via Postgres RPC.
+- **Semantic cache** — pgvector-backed similarity cache to cut LLM cost on repeated questions.
+- **FAQ matcher** — Published FAQs short-circuit the pipeline; auto-FAQ miner drafts candidates from chat logs.
+- **Automation flows** — Visual flow matching for structured bot paths.
+- **Human handover** — Regex/intent gates, SLA worker, agent inbox with Realtime updates.
+- **Campaigns** — Outbound campaign worker via pg-boss.
+- **Embeddable web chat widget** — Configurable widget with tenant-scoped tokens.
+- **Billing & tiers** — Razorpay plans, webhooks, quota enforcement in the pipeline.
+- **Optional voice** — STT for inbound audio; TTS + ffmpeg for voice-note replies when enabled.
+- **Integrations** — Shopify webhooks, CRM/marketing hooks (see backend routes).
+
+---
+
+## Architecture — inbound message waterfall
+
+External WhatsApp traffic enters /webhooks/meta. Messages are normalized, tenant-scoped, and stored; if the conversation is in bot mode, processAutomationPipeline runs a **cheap-first waterfall**:
+
+`mermaid
+flowchart TD
+  WH[WhatsApp webhook] --> MH[messageHandler normalize + persist]
+  MH --> BOT{Conversation bot mode?}
+  BOT -->|no| INBOX[Human inbox / Realtime]
+  BOT -->|yes| P[Automation pipeline]
+  P --> G1[Human intent / handover regex]
+  G1 -->|escalate| HO[triggerHandover]
+  G1 -->|continue| G2[Quota reserve]
+  G2 --> FAQ[FAQ match]
+  FAQ -->|hit| SEND[Send via BSP]
+  FAQ -->|miss| FLOW[Flow matcher]
+  FLOW -->|handled| SEND
+  FLOW -->|miss| CACHE[Semantic cache]
+  CACHE -->|hit| SEND
+  CACHE -->|miss| RAG[Hybrid KB retrieval + optional rerank]
+  RAG --> LLM[LLM generator + confidence]
+  LLM -->|high confidence| SEND
+  LLM -->|low confidence| HO
+  SEND --> META[Meta / Gupshup outbound API]
+`
+
+Supabase stays **external** on both cloud and VPS paths (no self-hosted Postgres in the Compose plan).
+
+---
+
+## Deployment paths
+
+### Cloud (default)
+
+1. **Supabase** — Create project; run migrations from supabase/migrations/.
+2. **Render** — Deploy ackend/ using 
+ender.yaml (Node 20, health check GET /health).
+3. **Vercel** — Deploy root Vite app; set build-time VITE_* variables.
+4. Point Meta WhatsApp webhook to https://<api-host>/webhooks/meta.
+
+Details: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
+
+### VPS — Docker Compose / Coolify
+
+From repo root (after copying .env.example → .env and filling values):
+
+`ash
+docker compose up --build
+`
+
+- Frontend: http://localhost:8080
+- Backend: http://localhost:4000 (GET /health)
+
+Full dual-path playbook (staging domains, env matrix, ffmpeg for TTS):
+
+**[docs/superpowers/plans/2026-07-25-coolify-dual-deploy.md](./docs/superpowers/plans/2026-07-25-coolify-dual-deploy.md)**
+
+Related RAG docs: [2026-07-25-rag-implementation.md](./docs/superpowers/plans/2026-07-25-rag-implementation.md), [2026-07-25-rag-redesign.md](./docs/superpowers/plans/2026-07-25-rag-redesign.md).
+
+---
+
+## Prerequisites
+
+- **Node.js 20+**
+- **npm**
+- **Supabase** project (URL, anon key, service role key, Postgres connection string for pg-boss)
+- **Meta** WhatsApp Cloud API app (or Gupshup credentials if using that BSP)
+- **OpenAI-compatible** API key for chat + embeddings
+- Optional: Razorpay, Cohere (rerank), ffmpeg (TTS OGG on VPS — included in ackend/Dockerfile)
+
+---
+
+## Local development
+
+`ash
+# Frontend (repo root) — default Vite port 5173
 npm install
-
-# Start the Vite development server (Frontend)
 npm run dev
 
-# Start the Express backend (in a separate terminal)
-cd backend && npm install && npm run dev
-```
+# Backend (separate terminal)
+cd backend
+npm install
+cp .env.example .env   # fill values locally; never commit .env
+npm run dev            # default http://localhost:4000
+`
+
+**Database migrations** (Supabase CLI linked to your project):
+
+`ash
+supabase db push
+# or apply SQL from supabase/migrations/ via Supabase Dashboard SQL editor
+`
+
+Health check: curl http://127.0.0.1:4000/health
 
 ---
 
-## 🏗 Architecture & Tech Stack
+## Project structure
 
-This SaaS is built on a highly optimized, modern tech stack designed for speed, scalability, and an Apple-tier "Pro Max" user experience.
-
-### Frontend
-- **Framework:** React 18 powered by Vite.
-- **Routing:** React Router DOM (v6) with aggressive `<Suspense>` lazy-loading.
-- **Styling (Pro Max UI):** Tailwind CSS v4 + Radix UI primitives. Clean, premium aesthetic featuring dark mode glassmorphism, dynamic gradients, and the official Flought brand identity.
-- **3D Marketing Pipeline:** The landing page utilizes `@react-three/fiber` and `@react-three/rapier` for a real-time physics simulation of the AI-to-Human Handover pipeline.
-
-### Backend & Database
-- **Database:** PostgreSQL (via Supabase).
-- **API:** Node.js / Express backend handles secure routes (tenant provisioning, WhatsApp Webhook ingestion, outbound BSP API calls).
-- **Concurrency Control:** Utilizes strict PostgreSQL Row Locks (`FOR UPDATE`) and Optimistic Concurrency Control (OCC) to prevent duplicate webhook processing and race conditions.
+`
+.
+├── src/                    # React SPA (dashboard, inbox, KB, flows, widget config)
+├── backend/
+│   ├── src/
+│   │   ├── bsp/            # Meta / Gupshup providers
+│   │   ├── routes/         # REST API, billing, widget, admin
+│   │   ├── services/
+│   │   │   ├── automation/ # Pipeline, handover, flows, FAQ, SLA
+│   │   │   ├── kb/         # Retrieval, ingest, chunking, parsers
+│   │   │   └── llm/        # Generator, STT, TTS
+│   │   └── index.ts        # Express app + worker bootstrap
+│   └── Dockerfile          # Node 20 + ffmpeg (Coolify/local)
+├── frontend/               # Nginx + Docker build for SPA
+├── supabase/migrations/    # Postgres schema, RLS, pgvector RPCs
+├── docker-compose.yml      # frontend + backend (Supabase external)
+├── vercel.json             # Vercel SPA config
+├── render.yaml             # Render backend config
+└── docs/superpowers/plans/ # Implementation & deploy plans
+`
 
 ---
 
-## 📁 Project Structure
+## Environment variables
 
-```text
-d:\Watsapp saas\
-├── Doc/                  # Source-of-truth specification documents
-├── src/                  # React Frontend Source Code
-│   ├── components/       # Reusable React components (Layout, Auth)
-│   ├── contexts/         # React Context (AuthContext)
-│   ├── lib/              # Utilities (supabase client, tailwind merge)
-│   └── pages/            # Lazy-loaded route views
-├── backend/              # Express server and backend services
-│   ├── src/routes/       # API Controllers (webhooks, admin, outbound)
-│   └── src/services/     # RAG, LLM, and BSP abstraction layer
-├── supabase/             # Supabase config and SQL migrations
-└── README.md             # 👈 You are here
-```
+**Do not commit secrets.** Use templates only:
+
+| File | Purpose |
+|------|---------|
+| [.env.example](./.env.example) | Docker Compose / Coolify checklist (VITE_* build args + pointers to backend) |
+| [backend/.env.example](./backend/.env.example) | Full backend runtime list |
+
+**Frontend (build-time, VITE_ prefix):**
+
+- VITE_API_URL — Public API origin (no trailing slash)
+- VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+- VITE_META_APP_ID — Meta embedded signup / OAuth UI
+
+**Backend (runtime, summary):**
+
+- **Required:** SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, OPENAI_API_KEY, DB_ENCRYPTION_KEY (32 chars in prod), PORT, NODE_ENV, FRONTEND_URL
+- **WhatsApp Meta:** META_ACCESS_TOKEN, META_PHONE_NUMBER_ID, META_APP_SECRET, META_VERIFY_TOKEN
+- **Gupshup (optional):** GUPSHUP_*
+- **Billing:** RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, plan IDs
+- **Optional AI / media:** LLM_MODEL, ENABLE_RERANK, COHERE_*, TTS_*, FFMPEG_PATH, OPENAI_BASE_URL
+- **Dev only:** SKIP_WEBHOOK_VERIFY=true (bypass Meta HMAC — never in production)
+
+**Note:** 	enant.ts may call the public API using VITE_API_URL on the **backend** env — set it to the same public API base URL on Render/Coolify.
+
+---
+
+## Webhooks & public endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| GET/POST /webhooks/meta | Meta WhatsApp verification + inbound events (HMAC via META_APP_SECRET) |
+| POST /api/billing/webhook | Razorpay subscription/payment events |
+| POST /api/shopify/webhook | Shopify app events |
+| POST /api/integrations/shopify/webhook/:pathToken | Per-tenant Shopify integration |
+| GET /health | Load balancer / Compose health check |
+
+Configure Meta callback URL: https://<your-api-domain>/webhooks/meta.
+
+---
+
+## Scripts
+
+| Location | Command | Description |
+|----------|---------|-------------|
+| Root | 
+pm run dev | Vite dev server |
+| Root | 
+pm run build | Production frontend build |
+| ackend/ | 
+pm run dev | Express + workers (tsx watch) |
+| ackend/ | 
+pm run build / 
+pm start | Compiled production server |
+| Root | docker compose up --build | Full stack locally |
+
+---
+
+## License
+
+No license file is included in this repository. All rights reserved unless you add an explicit LICENSE file.
+
+---
+
+## Repository
+
+**Remote:** [https://github.com/Jun-ai-d/Flought-watsapp-saas.git](https://github.com/Jun-ai-d/Flought-watsapp-saas.git)

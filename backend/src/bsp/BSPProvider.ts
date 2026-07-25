@@ -2,7 +2,8 @@ export interface SessionMessageContent {
   type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'interactive' | 'catalog';
   text?: string;
   mediaUrl?: string;
-  // Extensible for other types
+  /** WhatsApp voice-note UX when sending audio (OGG/OPUS mono). */
+  voice?: boolean;
 }
 
 export interface SendResult {

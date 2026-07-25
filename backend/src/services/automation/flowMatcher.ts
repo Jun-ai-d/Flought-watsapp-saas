@@ -1,3 +1,8 @@
+/**
+ * Pipeline entry for WhatsApp bot flows (keyword trigger → reply).
+ * Visual CRM automation graphs live in flowEngine.ts and are a separate system.
+ * Do NOT merge these without an explicit product decision.
+ */
 import { supabaseAdmin } from '../../lib/supabase';
 
 /**

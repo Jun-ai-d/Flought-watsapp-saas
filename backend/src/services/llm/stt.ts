@@ -1,13 +1,18 @@
 import OpenAI, { toFile } from 'openai';
 
-// STT requires the real OpenAI Whisper API, not OpenRouter.
+// STT requires the real OpenAI transcription API, not OpenRouter.
 // We create a dedicated client that explicitly uses api.openai.com.
 const sttClient = new OpenAI({
   baseURL: 'https://api.openai.com/v1',
   apiKey: process.env.OPENAI_STT_KEY || process.env.OPENAI_API_KEY
 });
 
-export async function transcribeAudio(mediaUrl: string, providerName?: string, accessToken?: string): Promise<string> {
+export async function transcribeAudio(
+  mediaUrl: string,
+  providerName?: string,
+  accessToken?: string,
+  languageHint?: string
+): Promise<string> {
   try {
     const headers: Record<string, string> = {};
     if (providerName === 'meta' && accessToken) {
@@ -25,10 +30,11 @@ export async function transcribeAudio(mediaUrl: string, providerName?: string, a
     
     const transcription = await sttClient.audio.transcriptions.create({
       file,
-      model: 'whisper-1',
+      model: 'gpt-4o-mini-transcribe',
+      ...(languageHint && /^[a-z]{2}$/i.test(languageHint) ? { language: languageHint.toLowerCase() } : {}),
     });
     
-    return transcription.text;
+    return (transcription.text || '').trim();
   } catch (error) {
     console.error('STT Error:', error);
     return '';

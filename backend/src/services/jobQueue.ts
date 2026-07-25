@@ -162,19 +162,21 @@ export function enqueueDebouncedMessage(
   messageContent: string, 
   fromPhone: string, 
   providerName: string, 
-  isNewSession: boolean
+  isNewSession: boolean,
+  wasAudioInbound: boolean = false
 ) {
   if (debounceMap.has(conversationId)) {
     const existing = debounceMap.get(conversationId);
     console.log(`[Debounce] Concatenating message for conversation ${conversationId}`);
     existing.messageContent += '\n' + messageContent;
+    existing.wasAudioInbound = existing.wasAudioInbound || wasAudioInbound;
     clearTimeout(existing.timer);
     existing.timer = setTimeout(() => executeDebouncedMessage(conversationId), 3000);
   } else {
     console.log(`[Debounce] Starting 3-second delay for conversation ${conversationId}`);
     const timer = setTimeout(() => executeDebouncedMessage(conversationId), 3000);
     debounceMap.set(conversationId, {
-      tenantId, conversationId, messageContent, fromPhone, providerName, isNewSession, timer
+      tenantId, conversationId, messageContent, fromPhone, providerName, isNewSession, wasAudioInbound, timer
     });
   }
 }
@@ -193,7 +195,8 @@ async function executeDebouncedMessage(conversationId: string) {
       data.messageContent, 
       data.fromPhone, 
       data.providerName, 
-      data.isNewSession
+      data.isNewSession,
+      data.wasAudioInbound ?? false
     );
   } catch (e) {
     console.error('Error in debounced pipeline:', e);

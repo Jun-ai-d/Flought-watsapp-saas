@@ -30,10 +30,13 @@ const PORT = process.env.PORT || 4000;
 app.use(helmet());
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:8080',
   'https://flought.com',
   'https://www.flought.com',
   'https://watsapp-saas.vercel.app',
-  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : [])
+  ...(process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map((o) => o.trim()).filter(Boolean)
+    : []),
 ];
 
 // Rate Limiting for webhooks (100 reqs / 1 min)
@@ -122,9 +125,10 @@ import { initBroadcastWorkers } from './services/marketing/broadcastWorker';
 import { initCartRecoveryWorker } from './services/ecommerce/cartRecoveryWorker';
 import { initOrderSyncWorker } from './services/ecommerce/orderSyncWorker';
 import { initSLAWorker } from './services/automation/slaWorker';
+import { initKbIngestWorker } from './services/kb/ingestWorker';
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Backend server running on http://localhost:${PORT}`);
+app.listen(Number(PORT), '0.0.0.0', async () => {
+  console.log(`🚀 Backend server running on http://0.0.0.0:${PORT}`);
   
   try {
     await initJobQueue();
@@ -133,7 +137,8 @@ app.listen(PORT, async () => {
     initBroadcastWorkers();
     initCartRecoveryWorker();
     initOrderSyncWorker();
-    initSLAWorker();
+    await initSLAWorker();
+    await initKbIngestWorker();
   } catch (error) {
     console.error('Failed to initialize background job workers', { error });
   }

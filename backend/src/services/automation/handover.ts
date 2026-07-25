@@ -11,6 +11,7 @@
 import { supabaseAdmin } from '../../lib/supabase';
 import OpenAI from 'openai';
 import { fireOutboundWebhook } from '../webhookService';
+import { scheduleSLACheck } from './slaWorker';
 
 const openai = new OpenAI();
 
@@ -105,7 +106,8 @@ export async function triggerHandover(tenantId: string, conversationId: string, 
       status: 'handover_pending', 
       handover_reason: reason,
       department: department,
-      handover_summary: summary
+      handover_summary: summary,
+      sla_breached: false,
     })
     .eq('id', conversationId)
     .eq('tenant_id', tenantId);
@@ -114,6 +116,8 @@ export async function triggerHandover(tenantId: string, conversationId: string, 
     console.error(`Handover failed for conv ${conversationId}:`, error);
   } else {
     console.log(`[Handover Triggered] Conv ${conversationId} -> pending (${reason}) [Dept: ${department}]`);
+
+    await scheduleSLACheck(tenantId, conversationId);
     
     // Alert external CRM via webhook
     fireOutboundWebhook(tenantId, {

@@ -1,0 +1,27 @@
+# Refund Policy
+
+## 30-day money-back guarantee
+Flought offers a 30-day money-back guarantee for all new customers on paid plans. If you are not satisfied with the platform during your first month, you may request a full refund of your subscription fee. The guarantee applies to the initial subscription charge only and does not cover usage-based overage fees incurred during the trial period.
+
+To qualify for the guarantee, your account must be in good standing with no violations of our acceptable use policy. Refund requests must be submitted within thirty calendar days from the date of your first successful payment. Accounts that have already received a refund under this policy in the past twelve months are not eligible for another guarantee refund.
+
+## How to request a refund
+Email billing@flought.com with your tenant ID, the email address associated with your account, and a brief explanation of why you are canceling. Our billing team responds within two business days with confirmation and next steps. Once approved, refunds are processed to the original payment method within five to seven business days depending on your bank or card issuer.
+
+If you paid through Razorpay or another regional processor, settlement times may vary by country. You will receive an email when the refund has been initiated. Partial refunds are not available for unused time on annual plans unless required by local consumer protection law.
+
+## Non-refundable items
+Overage charges for WhatsApp conversations, LLM tokens, and voice transcription minutes are strictly non-refundable because they represent third-party API costs already incurred on your behalf. Add-on marketplace purchases, custom onboarding packages, and one-time setup fees are also non-refundable after delivery has begun.
+
+Promotional credits, referral bonuses, and extended trial extensions have no cash value and cannot be converted to refunds. If you downgrade from a higher plan mid-cycle, the difference is credited toward future invoices rather than refunded unless mandated by regulation in your jurisdiction.
+
+## Subscription cancellation
+You may cancel your subscription at any time from Settings → Billing. Cancellation stops future renewals but does not automatically trigger a refund unless you are within the thirty-day guarantee window. Your workspace remains accessible until the end of the current billing period unless you choose immediate deactivation.
+
+After cancellation, uploaded knowledge base documents and conversation history are retained for ninety days before permanent deletion. Export your data before canceling if you need records for compliance or internal audit purposes.
+
+## Disputes and chargebacks
+We encourage customers to contact billing@flought.com before initiating a chargeback with their bank. Chargebacks may result in immediate suspension of WhatsApp messaging capabilities to prevent further billable API usage while the dispute is investigated. Fraudulent chargebacks may lead to permanent account termination.
+
+## Contact
+For billing questions, reach billing@flought.com. For technical support unrelated to refunds, use the in-app chat or support@flought.com. Business hours are Monday through Friday, 9 AM to 6 PM IST, excluding public holidays in India.

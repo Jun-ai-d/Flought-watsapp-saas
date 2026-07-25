@@ -1,9 +1,13 @@
 import { boss } from '../jobQueue';
 import { supabaseAdmin } from '../../lib/supabase';
 
-export const initSLAWorker = () => {
-  // Checks if a conversation is still unresolved after the SLA timer expires
-  boss.work('check-sla-breach', async (job: any) => {
+const OPEN_HANDOVER_STATUSES = new Set(['handover_pending', 'handover_active']);
+
+export const initSLAWorker = async () => {
+  await boss.createQueue('check-sla-breach');
+
+  // Fires after a delayed job enqueued at handover time (default 15 minutes).
+  await boss.work('check-sla-breach', async (job: any) => {
     const jobData = Array.isArray(job) ? job[0].data : job.data;
     const { tenantId, conversationId } = jobData;
 
@@ -15,24 +19,24 @@ export const initSLAWorker = () => {
         .eq('tenant_id', tenantId)
         .single();
 
-      // If still open/assigned and not closed, and NOT already breached, it's a breach
-      if (conversation && conversation.status !== 'closed' && !conversation.sla_breached) {
+      if (
+        conversation &&
+        OPEN_HANDOVER_STATUSES.has(conversation.status) &&
+        !conversation.sla_breached
+      ) {
         console.warn(`[SLA Breach] Conversation ${conversationId} breached SLA. Alerting manager.`);
-        
-        // Add a note about the breach
+
         await supabaseAdmin.from('conversation_notes').insert({
           tenant_id: tenantId,
           conversation_id: conversationId,
-          content: '⚠️ SYSTEM: SLA Breach detected. Conversation unresolved for over 15 minutes.'
+          content: '⚠️ SYSTEM: SLA Breach detected. Conversation unresolved for over 15 minutes.',
         });
 
-        // Mark as breached so we don't spam duplicate notes
-        await supabaseAdmin.from('conversations')
+        await supabaseAdmin
+          .from('conversations')
           .update({ sla_breached: true })
           .eq('id', conversationId)
           .eq('tenant_id', tenantId);
-
-        // Here we could trigger a webhook or email to the tenant admins
       }
     } catch (error: any) {
       console.error(`[SLA Worker] Failed to check SLA for ${conversationId}:`, error.message);
@@ -40,3 +44,20 @@ export const initSLAWorker = () => {
     }
   });
 };
+
+/** Schedule a one-shot SLA check for an open handover conversation. */
+export async function scheduleSLACheck(
+  tenantId: string,
+  conversationId: string,
+  delaySeconds = 15 * 60
+) {
+  try {
+    await boss.send(
+      'check-sla-breach',
+      { tenantId, conversationId },
+      { startAfter: delaySeconds }
+    );
+  } catch (error: any) {
+    console.error(`[SLA] Failed to schedule check for ${conversationId}:`, error.message);
+  }
+}

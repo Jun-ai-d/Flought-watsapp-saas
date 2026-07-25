@@ -31,7 +31,12 @@ export class MetaProvider implements BSPProvider {
 
     if (content.type === 'text') {
       metaMessage.text = { preview_url: false, body: content.text };
-    } else if (content.type === 'audio' || content.type === 'image' || content.type === 'document' || content.type === 'video') {
+    } else if (content.type === 'audio') {
+      metaMessage.audio = {
+        link: content.mediaUrl,
+        ...(content.voice ? { voice: true } : {}),
+      };
+    } else if (content.type === 'image' || content.type === 'document' || content.type === 'video') {
       metaMessage[content.type] = { link: content.mediaUrl };
     }
 

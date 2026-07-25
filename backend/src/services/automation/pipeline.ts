@@ -9,6 +9,12 @@ import { generateRAGResponse } from '../llm/generator';
 import { getBSPProvider } from '../../bsp/providerFactory';
 import { ProviderConfig } from '../../bsp/BSPProvider';
 import { appCache } from '../../lib/cache';
+import {
+  isVoiceReplyEligible,
+  synthesizeVoiceNote,
+  uploadVoiceNote,
+  type VoiceReplySettings,
+} from '../llm/tts';
 
 // In-memory lock to prevent race conditions when a user sends rapid-fire messages.
 // This ensures that concurrent webhooks for the same conversation are processed sequentially.
@@ -35,7 +41,8 @@ export async function processAutomationPipeline(
   messageText: string,
   customerPhone: string,
   providerName: string,
-  isNewSession: boolean = false
+  isNewSession: boolean = false,
+  wasAudioInbound: boolean = false
 ) {
   // Concurrency Lock: Chain execution for the same conversation to prevent double-replies
   const previousLock = conversationLocks.get(conversationId);
@@ -131,13 +138,16 @@ export async function processAutomationPipeline(
     const intent = await routeMessageIntent(messageText, formattedHistory);
     console.log(`[Pipeline] Router classified as: ${intent.categories.join(', ')} (Rewritten: ${intent.rewrittenQuery})`);
 
-    // Semantic Cache Check (using English Translation)
+    // Semantic Cache Check (original-language rewrite preferred over translation)
     const { checkSemanticCache } = await import('../kb/semanticCache');
-    const cacheQuery = intent.englishTranslation || intent.rewrittenQuery || messageText;
+    const cacheQuery = intent.rewrittenQuery || messageText;
     const cachedResponse = await checkSemanticCache(tenantId, cacheQuery);
     if (cachedResponse) {
       console.log(`[Pipeline] Semantic Cache Hit! Saving LLM tokens.`);
-      await sendBotReply(tenantId, conversationId, customerPhone, providerName, cachedResponse, 'rag');
+      await sendBotReply(tenantId, conversationId, customerPhone, providerName, cachedResponse, 'rag', undefined, {
+        wasAudioInbound,
+        allowVoice: true,
+      });
       return;
     }
 
@@ -149,10 +159,14 @@ export async function processAutomationPipeline(
 
     // Concurrent Data Fetching
     const isKnowledge = intent.categories.includes('knowledge');
-    const searchString = intent.normalizedKeywords?.length ? intent.normalizedKeywords.join(' ') : (intent.rewrittenQuery || messageText);
+    const searchString = intent.rewrittenQuery || messageText;
+    const keywordSuffix = intent.normalizedKeywords?.length
+      ? ' ' + intent.normalizedKeywords.join(' ')
+      : '';
+    const retrievalQuery = (searchString + keywordSuffix).trim();
     
     const [chunks, { data: tenant }] = await Promise.all([
-      !isKnowledge ? Promise.resolve([]) : retrieveRelevantChunks(tenantId, searchString),
+      !isKnowledge ? Promise.resolve([]) : retrieveRelevantChunks(tenantId, retrievalQuery),
       supabaseAdmin.from('tenants').select('business_name, ai_settings').eq('id', tenantId).single()
     ]);
 
@@ -160,6 +174,8 @@ export async function processAutomationPipeline(
       welcome_message_type?: 'fixed' | 'llm';
       fixed_welcome_message?: string;
       system_prompt?: string;
+      voice_replies?: boolean;
+      voice_max_chars?: number;
       [key: string]: unknown;
     }
     const aiSettings = tenant?.ai_settings as AISettings | undefined;
@@ -208,6 +224,14 @@ export async function processAutomationPipeline(
     // formattedHistory was computed earlier for the router
     const systemPromptOverride = aiSettings?.system_prompt;
 
+    if (isKnowledge && chunks.length === 0) {
+      const noKbMsg = "I'm sorry, I don't have that information. Let me transfer you to a human agent.";
+      await sendBotReply(tenantId, conversationId, customerPhone, providerName, noKbMsg, 'rag');
+      await triggerHandover(tenantId, conversationId, 'low_confidence_generation', messageText, 'Empty KB / no retrieval hits');
+      try { await supabaseAdmin.rpc('refund_tenant_quota', { p_tenant_id: tenantId }); } catch (e) {}
+      return;
+    }
+
     const llmResponse = await generateRAGResponse(messageText, chunks, businessName, formattedHistory, systemPromptOverride, previousSummary);
 
     /**
@@ -239,12 +263,15 @@ export async function processAutomationPipeline(
 
     // If everything went perfectly, we dispatch the highly-confident AI response.
     console.log(`[Pipeline] LLM generated high confidence response.`);
-    await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id));
+    await sendBotReply(tenantId, conversationId, customerPhone, providerName, llmResponse.content, 'rag', chunks.map(c => c.id), {
+      wasAudioInbound,
+      aiSettings,
+      allowVoice: true,
+    });
     
     // Cache the highly confident RAG response
     if (intent.categories.includes('knowledge')) {
       const { setSemanticCache } = await import('../kb/semanticCache');
-      const cacheQuery = intent.englishTranslation || intent.rewrittenQuery || messageText;
       await setSemanticCache(tenantId, cacheQuery, llmResponse.content);
     }
   } catch (error) {
@@ -272,6 +299,13 @@ export async function processAutomationPipeline(
  * This helper isolates the complex logic of actually routing a message out to WhatsApp.
  * It handles caching, security decryption, WhatsApp policy checks, and database logging.
  */
+export interface SendBotReplyOptions {
+  wasAudioInbound?: boolean;
+  aiSettings?: VoiceReplySettings;
+  /** High-confidence RAG path only — enables optional voice-out. */
+  allowVoice?: boolean;
+}
+
 export async function sendBotReply(
   tenantId: string, 
   conversationId: string, 
@@ -279,7 +313,8 @@ export async function sendBotReply(
   providerName: string, 
   text: string,
   source: 'faq' | 'rag' | 'flow',
-  chunkIds?: string[]
+  chunkIds?: string[],
+  options?: SendBotReplyOptions
 ) {
   /**
    * Note 12: In-Memory Caching
@@ -350,6 +385,67 @@ export async function sendBotReply(
    * The provider instance handles the HTTP specifics and normalizes the return values.
    */
   const provider = getBSPProvider(providerName);
+
+  let aiSettings = options?.aiSettings;
+  if (!aiSettings && options?.allowVoice && options?.wasAudioInbound) {
+    const { data: tenant } = await supabaseAdmin
+      .from('tenants')
+      .select('ai_settings')
+      .eq('id', tenantId)
+      .single();
+    aiSettings = tenant?.ai_settings as VoiceReplySettings | undefined;
+  }
+
+  const voiceEligible = isVoiceReplyEligible(
+    text,
+    source,
+    options?.wasAudioInbound ?? false,
+    options?.allowVoice ?? false,
+    aiSettings
+  );
+
+  if (voiceEligible) {
+    const maxChars = typeof aiSettings?.voice_max_chars === 'number'
+      ? aiSettings.voice_max_chars
+      : 400;
+    const oggBuffer = await synthesizeVoiceNote(text, maxChars);
+    if (oggBuffer) {
+      const mediaUrl = await uploadVoiceNote(tenantId, oggBuffer);
+      if (mediaUrl) {
+        try {
+          const voiceResult = await provider.sendSessionMessage({
+            tenantId,
+            to: toPhone,
+            content: { type: 'audio', mediaUrl, voice: true },
+            providerConfig: decryptedConfig || {},
+          });
+
+          const { error: voiceLogError } = await supabaseAdmin
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              tenant_id: tenantId,
+              direction: 'outbound',
+              message_type: 'audio',
+              content: text,
+              sender: 'bot',
+              wa_message_id: voiceResult.bspMessageId,
+              llm_model_used: source === 'rag' ? (process.env.LLM_MODEL || 'gpt-4o-mini') : null,
+              retrieved_chunk_ids: chunkIds || null,
+            });
+
+          if (voiceLogError) console.error('Error saving voice bot reply:', voiceLogError);
+          console.log(`[TTS] Sent voice reply for conv ${conversationId}`);
+          return;
+        } catch (voiceSendError) {
+          console.error('[TTS] Meta voice send failed, falling back to text:', voiceSendError);
+        }
+      }
+    } else {
+      console.log('[TTS] Voice synthesis unavailable — falling back to text');
+    }
+  }
+
   const sendResult = await provider.sendSessionMessage({
     tenantId,
     to: toPhone,

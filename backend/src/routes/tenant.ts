@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { encryptToken } from '../bsp/crypto';
+import { enqueueKbIngest } from '../services/kb/ingestWorker';
 
 const router = Router();
 
@@ -482,6 +483,32 @@ router.post('/integrations/meta/oauth', async (req: Request, res: Response) => {
     console.error('Error during Meta OAuth:', error);
     res.status(500).json({ error: 'Failed to complete Meta integration' });
   }
+});
+
+/** POST /api/tenant/kb/documents/:id/ingest — enqueue vectorization */
+router.post('/kb/documents/:id/ingest', async (req: Request, res: Response) => {
+  const tenantId = req.headers['x-tenant-id'] as string;
+  const documentId = String(req.params.id);
+
+  const { data: doc } = await supabaseAdmin
+    .from('knowledge_documents')
+    .select('id, status')
+    .eq('id', documentId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+  if (doc.status === 'failed' || doc.status === 'ready') {
+    await supabaseAdmin
+      .from('knowledge_documents')
+      .update({ status: 'processing', error_message: null })
+      .eq('id', documentId)
+      .eq('tenant_id', tenantId);
+  }
+
+  await enqueueKbIngest(tenantId, documentId);
+  return res.json({ ok: true, documentId });
 });
 
 export default router;

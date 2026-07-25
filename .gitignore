@@ -36,3 +36,11 @@ backend/.env
 
 # Added by code-review-graph
 .code-review-graph/
+
+# Local env variants (keep .env.example)
+.env.*
+!.env.example
+!backend/.env.example
+
+# Supabase CLI local state
+supabase/.temp/

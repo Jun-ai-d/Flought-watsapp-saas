@@ -5,6 +5,11 @@ import { RefreshCw, Code, Check, Globe } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { WebChatWidget } from '../components/WebChatWidget';
 
+type WidgetConfig = {
+  widget_token: string | null;
+  business_name: string;
+};
+
 export default function WidgetConfigurator() {
   const { tenant } = useAuth();
   const queryClient = useQueryClient();
@@ -12,32 +17,42 @@ export default function WidgetConfigurator() {
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['widget_config', tenant?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<WidgetConfig | null> => {
       if (!tenant) return null;
-      // Use tenant table for widget token (simplified)
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('widget_token, business_name')
-        .eq('id', tenant.id)
-        .single();
-        
-      if (error) throw error;
-      return data;
+
+      const [{ data: tokenRow, error: tokenError }, { data: tenantRow, error: tenantError }] =
+        await Promise.all([
+          supabase
+            .from('widget_tokens')
+            .select('token')
+            .eq('tenant_id', tenant.id)
+            .eq('is_active', true)
+            .maybeSingle(),
+          supabase
+            .from('tenants')
+            .select('business_name')
+            .eq('id', tenant.id)
+            .single(),
+        ]);
+
+      if (tokenError) throw tokenError;
+      if (tenantError) throw tenantError;
+
+      return {
+        widget_token: tokenRow?.token ?? null,
+        business_name: tenantRow.business_name,
+      };
     },
     enabled: !!tenant?.id,
   });
 
   const rotateTokenMutation = useMutation({
     mutationFn: async () => {
-      const newToken = `wt_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`;
-      const { error } = await supabase
-        .from('tenants')
-        // @ts-ignore
-        .update({ widget_token: newToken })
-        .eq('id', tenant!.id);
-      
+      const { data: newToken, error } = await supabase.rpc('rotate_widget_token', {
+        p_tenant_id: tenant!.id,
+      });
       if (error) throw error;
-      return newToken;
+      return newToken as string;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['widget_config', tenant?.id] });
@@ -46,7 +61,7 @@ export default function WidgetConfigurator() {
   });
 
   const handleCopy = () => {
-    const embedCode = `<script src="https://cdn.flought.com/widget.js" data-token="${(config as any)?.widget_token || 'YOUR_TOKEN'}"></script>`;
+    const embedCode = `<script src="https://cdn.flought.com/widget.js" data-token="${config?.widget_token || 'YOUR_TOKEN'}"></script>`;
     navigator.clipboard.writeText(embedCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -79,7 +94,7 @@ export default function WidgetConfigurator() {
               <pre className="bg-theme-bg border border-theme-border p-4 rounded-lg text-sm font-mono overflow-x-auto text-theme-text theme-button">
 {`<script 
   src="https://cdn.flought.com/widget.js" 
-  data-token="${(config as any)?.widget_token || 'YOUR_TOKEN'}"
+  data-token="${config?.widget_token || 'YOUR_TOKEN'}"
 ></script>`}
               </pre>
               <button 
@@ -130,13 +145,13 @@ export default function WidgetConfigurator() {
                 <div className="w-1/3 h-full bg-theme-border rounded-b-xl"></div>
               </div>
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                <h3 className="font-display font-bold text-xl mb-2">{(config as any)?.business_name || 'Your Website'}</h3>
+                <h3 className="font-display font-bold text-xl mb-2">{config?.business_name || 'Your Website'}</h3>
                 <p className="text-theme-text-muted text-sm">This is how your website looks to visitors.</p>
                 <p className="text-theme-text-muted text-sm mt-4">Try clicking the widget in the bottom right!</p>
               </div>
               {/* Render the WebChatWidget directly in the preview container */}
               <div className="absolute inset-0 pointer-events-auto">
-                <WebChatWidget forcePreview={true} />
+                <WebChatWidget forcePreview={true} widgetToken={config?.widget_token ?? undefined} />
               </div>
             </div>
           </div>

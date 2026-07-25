@@ -1,3 +1,5 @@
+/** NOT WIRED — do not import until product wants nightly FAQ mining. */
+
 import { supabaseAdmin } from '../../lib/supabase';
 import OpenAI from 'openai';
 const openai = new OpenAI();

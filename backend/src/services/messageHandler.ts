@@ -89,6 +89,9 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
     console.log(`[STT] Transcribing voice note for ${msg.waMessageId}`);
     transcript = await transcribeAudio(msg.mediaUrl, providerName, accessToken);
     messageContent = transcript;
+    if (!transcript) {
+      messageContent = '';
+    }
   }
   
   if (msg.type === 'order') {
@@ -154,17 +157,38 @@ async function processSingleMessage(msg: NormalizedInboundMessage, providerName:
   if (messageContent && currentStatus === 'bot') {
     // If it's a text/audio message and the bot is active, route to the debounce queue
     import('./jobQueue').then(({ enqueueDebouncedMessage }) => {
-      enqueueDebouncedMessage(tenantId, conversationId, messageContent, msg.fromPhone, providerName, result.is_new_session);
+      enqueueDebouncedMessage(
+        tenantId,
+        conversationId,
+        messageContent,
+        msg.fromPhone,
+        providerName,
+        result.is_new_session,
+        msg.type === 'audio'
+      );
     }).catch(e => {
       console.error('Error importing jobQueue for debouncing:', e);
     });
   } else if (!messageContent && currentStatus === 'bot') {
-    // If the message has no text (e.g., sticker, location, contact card), the bot cannot process it.
-    // We explicitly hand it over to a human rather than failing silently.
-    console.log(`[Handover] Unsupported media type from ${msg.fromPhone}. Triggering handover.`);
-    import('./automation/handover').then(({ triggerHandover }) => {
-      triggerHandover(tenantId, conversationId, 'unsupported_media_type', 'Customer sent an unsupported attachment or location.', 'Customer sent an attachment.');
-    });
+    if (msg.type === 'audio') {
+      console.log(`[STT] Empty transcript for voice note from ${msg.fromPhone}. Asking for text.`);
+      import('./automation/pipeline').then(({ sendBotReply }) => {
+        sendBotReply(
+          tenantId,
+          conversationId,
+          msg.fromPhone,
+          providerName,
+          'Please send your question as text — we could not hear that voice note.',
+          'faq'
+        );
+      }).catch(e => console.error('Error sending empty-STT reply:', e));
+    } else {
+      // If the message has no text (e.g., sticker, location, contact card), the bot cannot process it.
+      console.log(`[Handover] Unsupported media type from ${msg.fromPhone}. Triggering handover.`);
+      import('./automation/handover').then(({ triggerHandover }) => {
+        triggerHandover(tenantId, conversationId, 'unsupported_media_type', 'Customer sent an unsupported attachment or location.', 'Customer sent an attachment.');
+      });
+    }
   } else if (currentStatus !== 'bot') {
     // If the conversation is 'handover_pending' or 'handover_active', the bot is completely silenced.
     // The human agent will read the message via the Inbox UI and reply manually.

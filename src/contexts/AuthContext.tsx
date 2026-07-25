@@ -4,7 +4,7 @@
  * This file is the core identity provider for the entire React application.
  * It tracks three distinct things:
  * 1. Is the user logged in? (session, user)
- * 2. Which business do they belong to? (tenant, role)
+ * 2. Which business do they belong to? (tenant, role) — supports multi-membership
  * 3. Are they a Flought employee? (isPlatformAdmin)
  */
 
@@ -12,7 +12,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
-// Represents the business that the current user is employed by
+const ACTIVE_TENANT_KEY = 'flought_active_tenant_id';
+
 interface TenantContext {
   id: string;
   business_name: string;
@@ -32,6 +33,10 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   tenant: TenantContext | null;
+  /** All tenant memberships for the signed-in user (may be empty). */
+  tenants: TenantContext[];
+  /** Switch active tenant when the user belongs to more than one. */
+  switchTenant: (tenantId: string) => void;
   isPlatformAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -39,87 +44,103 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function mapMembership(row: any): TenantContext | null {
+  const t = row?.tenants;
+  if (!t?.id) return null;
+  return {
+    id: t.id,
+    business_name: t.business_name,
+    role: row.role as 'admin' | 'agent',
+    plan_type: t.plan_type,
+    trial_expires_at: t.trial_expires_at,
+    trial_conversations_used: t.trial_conversations_used,
+    trial_conversations_limit: t.trial_conversations_limit,
+    ai_settings: t.ai_settings,
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [tenant, setTenant] = useState<TenantContext | null>(null);
-  
-  // If true, the sidebar will render a special "Platform Admin" button allowing 
-  // Flought employees to provision new tenants.
+  const [tenants, setTenants] = useState<TenantContext[]>([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  /**
-   * Fetches the user's business association from Postgres.
-   * Also makes a secure call to the Node.js backend to verify if this user
-   * is a Super Admin. We do NOT rely on client-side state for actual security,
-   * this is purely to toggle UI rendering.
-   */
+  const switchTenant = (tenantId: string) => {
+    const next = tenants.find((t) => t.id === tenantId);
+    if (!next) return;
+    localStorage.setItem(ACTIVE_TENANT_KEY, tenantId);
+    setTenant(next);
+  };
+
   const fetchTenantContext = async (userId: string) => {
-    // 1. Find which business this user works for
     const { data, error } = await supabase
       .from('tenant_users')
-      .select('role, tenants (id, business_name, plan_type, trial_expires_at, trial_conversations_used, trial_conversations_limit, ai_settings)')
-      .eq('user_id', userId)
-      .single();
+      .select(
+        'role, tenants (id, business_name, plan_type, trial_expires_at, trial_conversations_used, trial_conversations_limit, ai_settings)'
+      )
+      .eq('user_id', userId);
 
-    if (data && (data as any).tenants && !error) {
-      const t = (data as any).tenants;
-      setTenant({
-        id: t.id,
-        business_name: t.business_name,
-        role: (data as any).role as 'admin' | 'agent',
-        plan_type: t.plan_type,
-        trial_expires_at: t.trial_expires_at,
-        trial_conversations_used: t.trial_conversations_used,
-        trial_conversations_limit: t.trial_conversations_limit,
-        ai_settings: t.ai_settings
-      });
-    } else {
+    const memberships = (data ?? [])
+      .map(mapMembership)
+      .filter((m): m is TenantContext => m !== null);
+
+    if (error || memberships.length === 0) {
+      setTenants([]);
       setTenant(null);
+    } else {
+      setTenants(memberships);
+      const preferredId = localStorage.getItem(ACTIVE_TENANT_KEY);
+      const preferred =
+        (preferredId && memberships.find((m) => m.id === preferredId)) || memberships[0];
+      localStorage.setItem(ACTIVE_TENANT_KEY, preferred.id);
+      setTenant(preferred);
     }
 
-    // 2. Check Platform Admin status via the secure Express backend
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      if (currentSession) {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
         const res = await fetch(`${apiUrl}/api/admin/check`, {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
+          headers: { Authorization: `Bearer ${currentSession.access_token}` },
         });
         if (res.ok) {
-          const data = await res.json();
-          setIsPlatformAdmin(!!data.isPlatformAdmin);
+          const body = await res.json();
+          setIsPlatformAdmin(!!body.isPlatformAdmin);
         } else {
           setIsPlatformAdmin(false);
         }
       }
-    } catch (e) {
+    } catch {
       setIsPlatformAdmin(false);
     }
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchTenantContext(session.user.id).finally(() => setLoading(false));
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      if (initialSession?.user) {
+        fetchTenantContext(initialSession.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      if (nextSession?.user) {
         setLoading(true);
-        fetchTenantContext(session.user.id).finally(() => setLoading(false));
+        fetchTenantContext(nextSession.user.id).finally(() => setLoading(false));
       } else {
         setTenant(null);
+        setTenants([]);
         setIsPlatformAdmin(false);
         setLoading(false);
       }
@@ -133,7 +154,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, tenant, isPlatformAdmin, loading, signOut }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        tenant,
+        tenants,
+        switchTenant,
+        isPlatformAdmin,
+        loading,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
