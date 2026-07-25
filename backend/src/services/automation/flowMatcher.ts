@@ -16,8 +16,9 @@ export async function executeFlow(tenantId: string, messageText: string): Promis
       .select('nodes, edges')
       .eq('tenant_id', tenantId)
       .eq('is_active', true)
+      .order('updated_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!flow || !flow.nodes || flow.nodes.length === 0) {
       return { matched: false };

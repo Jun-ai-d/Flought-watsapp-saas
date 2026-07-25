@@ -50,9 +50,13 @@ const KnowledgeBaseManager: React.FC = () => {
     }
   };
 
-  const { data: docs = [], isLoading: loading } = useQuery<KBDocument[]>({
+  const { data: docs = [], isLoading: loading, error: loadError, refetch } = useQuery<KBDocument[]>({
     queryKey: ['kb-docs', tenant?.id],
     queryFn: async () => {
+      if (tenant?.plan_type === 'trial') {
+        await supabase.rpc('reconcile_trial_kb_doc_count', { p_tenant_id: tenant.id } as never);
+      }
+
       const { data, error } = await supabase
         .from('knowledge_documents')
         .select('id, source_name, status, uploaded_at, file_path, error_message, chunk_count')
@@ -64,6 +68,21 @@ const KnowledgeBaseManager: React.FC = () => {
     enabled: !!tenant?.id,
     refetchInterval: (query) =>
       query.state.data?.some((d) => d.status === 'processing') ? 3000 : false,
+  });
+
+  const { data: kbHealth } = useQuery({
+    queryKey: ['kb-health'],
+    queryFn: async () => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/tenant/kb/health`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return { ok: false, message: 'Could not reach backend health endpoint' };
+      return res.json();
+    },
+    staleTime: 60_000,
   });
 
   const uploadMutation = useMutation<KBDocument, Error, File>({
@@ -225,6 +244,22 @@ const KnowledgeBaseManager: React.FC = () => {
         )}
       </div>
 
+      {loadError && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 text-sm flex items-center justify-between gap-4">
+          <span>Failed to load documents: {(loadError as Error).message}</span>
+          <button onClick={() => refetch()} className="font-bold underline shrink-0">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {kbHealth && !kbHealth.ok && (
+        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-800 text-sm flex items-start gap-2">
+          <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+          <span>{kbHealth.message} — new uploads may stay stuck in Processing until DATABASE_URL is set on the backend.</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
           <div className="theme-card p-6 bg-theme-surface">
@@ -291,10 +326,13 @@ const KnowledgeBaseManager: React.FC = () => {
               <div className="text-theme-text-muted font-medium text-center py-8">Loading documents...</div>
             ) : docs.length === 0 ? (
               <div
-                className="p-12 border-2 border-dashed border-theme-border bg-theme-bg text-center text-theme-text-muted font-medium"
+                className="p-12 border-2 border-dashed border-theme-border bg-theme-bg text-center text-theme-text-muted font-medium space-y-2"
                 style={{ borderRadius: 'var(--radius-card)' }}
               >
                 <p>No documents uploaded yet.</p>
+                <p className="text-sm">
+                  Upload a PDF or TXT file on the left. The AI uses indexed chunks when FAQs do not match.
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -343,7 +381,7 @@ const KnowledgeBaseManager: React.FC = () => {
                         </span>
                       )}
 
-                      {doc.status === 'failed' && (
+                      {(doc.status === 'failed' || isStuckProcessing(doc)) && (
                         <button
                           className="p-2 text-theme-text-muted hover:text-brand-accent hover:bg-brand-accent/10 transition-colors rounded-full disabled:opacity-50"
                           aria-label="Retry indexing"

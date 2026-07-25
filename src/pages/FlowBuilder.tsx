@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ReactFlow,
   MiniMap,
@@ -119,6 +119,7 @@ const initialEdges = [
 
 export default function FlowBuilder() {
   const { tenant } = useAuth();
+  const queryClient = useQueryClient();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   
@@ -154,9 +155,11 @@ export default function FlowBuilder() {
         .from('bot_flows')
         .select('*')
         .eq('tenant_id', tenant.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
-        
-      if (error && error.code !== 'PGRST116') throw error;
+
+      if (error) throw error;
       return data || null;
     },
     enabled: !!tenant?.id
@@ -190,7 +193,7 @@ export default function FlowBuilder() {
   }, [flowData, loading, handleNodeDataChange, setNodes, setEdges]);
 
   const handleSave = async () => {
-    if (!tenant) return;
+    if (!tenant || saving) return;
     setSaving(true);
     try {
       const cleanNodes = nodes.map(n => {
@@ -208,13 +211,21 @@ export default function FlowBuilder() {
       };
 
       if (flowId) {
-        const { error } = await supabase.from('bot_flows').update(payload as never).eq('id', flowId);
+        const { data, error } = await supabase
+          .from('bot_flows')
+          .update(payload as never)
+          .eq('id', flowId)
+          .eq('tenant_id', tenant.id)
+          .select()
+          .single();
         if (error) throw error;
+        if (!data) throw new Error('Flow not found — it may have been deleted. Reload and try again.');
       } else {
         const { data, error } = await supabase.from('bot_flows').insert(payload as never).select().single();
         if (error) throw error;
         if (data) setFlowId((data as any).id);
       }
+      await queryClient.invalidateQueries({ queryKey: ['chat_flows', tenant.id] });
       alert('Flow saved successfully!');
     } catch (err: unknown) {
       console.error(err);

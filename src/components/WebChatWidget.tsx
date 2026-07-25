@@ -171,12 +171,14 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
     return null;
   }
 
+  const positionClass = forcePreview ? 'absolute' : 'fixed';
+
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          'fixed bottom-6 right-6 w-14 h-14 bg-brand-accent text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 z-50',
+          `${positionClass} bottom-6 right-6 w-14 h-14 bg-brand-accent text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 z-50`,
           isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'
         )}
       >
@@ -185,7 +187,7 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
 
       <div
         className={cn(
-          'fixed bottom-6 right-6 w-[350px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-3rem)] bg-theme-surface rounded-2xl shadow-2xl border border-theme-border flex flex-col z-50 transition-all origin-bottom-right',
+          `${positionClass} bottom-6 right-6 w-[350px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-3rem)] bg-theme-surface rounded-2xl shadow-2xl border border-theme-border flex flex-col z-50 transition-all origin-bottom-right`,
           isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'
         )}
       >

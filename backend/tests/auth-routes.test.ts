@@ -1,19 +1,24 @@
 import { requireTenantMember, requireTenantAdminRole } from '../src/middleware/requireTenantMember';
 import { executeFlow } from '../src/services/automation/flowMatcher';
 
+const mockMaybeSingle = jest.fn();
 const mockSingle = jest.fn();
 const mockGetUser = jest.fn();
 
 const queryChain = {
   select: jest.fn(),
   eq: jest.fn(),
+  order: jest.fn(),
   limit: jest.fn(),
   single: mockSingle,
+  maybeSingle: mockMaybeSingle,
 };
 
 queryChain.select.mockReturnValue(queryChain);
 queryChain.eq.mockReturnValue(queryChain);
+queryChain.order.mockReturnValue(queryChain);
 queryChain.limit.mockReturnValue(queryChain);
+mockSingle.mockReturnValue(queryChain);
 
 jest.mock('../src/lib/supabase', () => ({
   supabaseAdmin: {
@@ -51,7 +56,7 @@ describe('Route auth middleware', () => {
       data: { user: { id: 'user-1' } },
       error: null,
     });
-    mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
 
     await requireTenantMember(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -72,7 +77,7 @@ describe('executeFlow keyword matching', () => {
   });
 
   test('returns matched reply for keyword trigger → message edge', async () => {
-    mockSingle.mockResolvedValue({
+    mockMaybeSingle.mockResolvedValue({
       data: {
         nodes: [
           { id: 't1', type: 'trigger', data: { keyword: 'hello' } },
@@ -88,7 +93,7 @@ describe('executeFlow keyword matching', () => {
   });
 
   test('returns matched false when keyword does not match', async () => {
-    mockSingle.mockResolvedValue({
+    mockMaybeSingle.mockResolvedValue({
       data: {
         nodes: [{ id: 't1', type: 'trigger', data: { keyword: 'hello' } }],
         edges: [],
