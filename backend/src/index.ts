@@ -1,3 +1,8 @@
+console.log('[Startup] Flought backend booting', {
+  nodeEnv: process.env.NODE_ENV ?? 'development',
+  port: process.env.PORT ?? 4000,
+});
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -22,6 +27,39 @@ import analyticsRouter from './routes/analytics';
 
 import rateLimit from 'express-rate-limit';
 import { traceMiddleware } from './middleware/traceMiddleware';
+import { getSupabaseConfigError, isSupabaseConfigured } from './lib/supabase';
+import { getEncryptionConfigError, isEncryptionConfigured } from './bsp/crypto';
+
+function getStartupChecks() {
+  return {
+    supabase: isSupabaseConfigured(),
+    encryption: isEncryptionConfigured(),
+    jobQueue: Boolean(process.env.DATABASE_URL),
+  };
+}
+
+function logStartupConfig() {
+  const checks = getStartupChecks();
+  const missing: string[] = [];
+
+  if (!checks.supabase) {
+    const err = getSupabaseConfigError();
+    if (err) missing.push(err);
+  }
+  if (!checks.encryption) {
+    const err = getEncryptionConfigError();
+    if (err) missing.push(err);
+  }
+  if (!checks.jobQueue) {
+    console.warn('[Startup] DATABASE_URL unset — background jobs disabled');
+  }
+
+  if (missing.length > 0) {
+    console.error('[Startup] Missing required config (API routes will fail until set):', missing);
+  } else {
+    console.log('[Startup] Required config present', checks);
+  }
+}
 
 const app = express();
 app.set('trust proxy', 1);
@@ -103,9 +141,25 @@ app.use('/api/notes', notesRouter);
 app.use('/api/growth', growthRouter);
 app.use('/api/analytics', analyticsRouter);
 
-// Health check
+// Health check — always 200 when process is up (Coolify/Docker healthcheck)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const checks = getStartupChecks();
+  const errors: string[] = [];
+  if (!checks.supabase) {
+    const err = getSupabaseConfigError();
+    if (err) errors.push(err);
+  }
+  if (!checks.encryption) {
+    const err = getEncryptionConfigError();
+    if (err) errors.push(err);
+  }
+
+  res.json({
+    status: errors.length === 0 ? 'ok' : 'degraded',
+    checks,
+    ...(errors.length > 0 ? { errors } : {}),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.get('/', (req, res) => {
@@ -129,6 +183,7 @@ import { initKbIngestWorker } from './services/kb/ingestWorker';
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`🚀 Backend server running on http://0.0.0.0:${PORT}`);
+  logStartupConfig();
 
   void (async () => {
     const queueReady = await initJobQueue();

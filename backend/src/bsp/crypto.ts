@@ -7,31 +7,51 @@ const ALGORITHM = 'aes-256-gcm';
  * C-6 Fix: No more zero-padding. Key must be exactly 32 characters (UTF-8)
  * or 64 hex characters. Anything else throws in all environments.
  */
-const getSecretKey = (): Buffer => {
+export function getEncryptionConfigError(): string | null {
   const envKey = process.env.DB_ENCRYPTION_KEY;
 
   if (!envKey) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('FATAL: DB_ENCRYPTION_KEY must be set in production');
+      return 'FATAL: DB_ENCRYPTION_KEY must be set in production';
     }
-    // Dev-only fallback: deterministic but never used in production
-    console.warn('[Crypto] WARNING: Using dev-only encryption key. Set DB_ENCRYPTION_KEY in .env');
-    return Buffer.from('flought_dev_only_key_do_not_use!', 'utf-8'); // exactly 32 bytes
+    return null;
   }
 
-  // Accept either a 32-char UTF-8 string or a 64-char hex string
   if (envKey.length === 64 && /^[0-9a-fA-F]+$/.test(envKey)) {
-    return Buffer.from(envKey, 'hex'); // 64 hex chars = 32 bytes
+    return null;
   }
 
   if (envKey.length === 32) {
-    return Buffer.from(envKey, 'utf-8'); // exactly 32 UTF-8 bytes
+    return null;
   }
 
-  throw new Error(
+  return (
     `FATAL: DB_ENCRYPTION_KEY must be exactly 32 UTF-8 characters or 64 hex characters. ` +
     `Got ${envKey.length} characters. Run \`openssl rand -hex 32\` to generate a valid key.`
   );
+}
+
+export function isEncryptionConfigured(): boolean {
+  return getEncryptionConfigError() === null;
+}
+
+const getSecretKey = (): Buffer => {
+  const envKey = process.env.DB_ENCRYPTION_KEY;
+
+  const configError = getEncryptionConfigError();
+  if (configError) {
+    if (!envKey && process.env.NODE_ENV !== 'production') {
+      console.warn('[Crypto] WARNING: Using dev-only encryption key. Set DB_ENCRYPTION_KEY in .env');
+      return Buffer.from('flought_dev_only_key_do_not_use!', 'utf-8'); // exactly 32 bytes
+    }
+    throw new Error(configError);
+  }
+
+  if (envKey!.length === 64) {
+    return Buffer.from(envKey!, 'hex');
+  }
+
+  return Buffer.from(envKey!, 'utf-8');
 };
 
 /**

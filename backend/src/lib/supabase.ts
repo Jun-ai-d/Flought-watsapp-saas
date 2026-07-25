@@ -1,28 +1,58 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// M-11 Fix: removed VITE_SUPABASE_URL fallback — VITE_ prefix is a client-side Vite convention
-// and should never be used in a Node.js backend. Always use SUPABASE_URL here.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let client: SupabaseClient | null = null;
 
-if (!supabaseUrl) {
-  throw new Error('Missing env var: SUPABASE_URL');
-}
-
-if (!supabaseServiceKey) {
-  throw new Error('Missing env var: SUPABASE_SERVICE_ROLE_KEY');
-}
-
-console.log('Backend Supabase URL:', supabaseUrl ? 'Found' : 'Missing');
-
-// Service role client — bypasses RLS for server-side writes.
-// NEVER expose this client or its key to frontend code.
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+export function getSupabaseConfigError(): string | null {
+  if (!process.env.SUPABASE_URL) {
+    return 'Missing env var: SUPABASE_URL';
   }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return 'Missing env var: SUPABASE_SERVICE_ROLE_KEY';
+  }
+  return null;
+}
+
+export function isSupabaseConfigured(): boolean {
+  return getSupabaseConfigError() === null;
+}
+
+function createSupabaseAdmin(): SupabaseClient {
+  const configError = getSupabaseConfigError();
+  if (configError) {
+    throw new Error(configError);
+  }
+
+  console.log('Backend Supabase URL: Found');
+
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+export function getSupabaseAdmin(): SupabaseClient {
+  if (!client) {
+    client = createSupabaseAdmin();
+  }
+  return client;
+}
+
+/** Lazy proxy — avoids crashing at import when env vars are missing in Coolify/Docker. */
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    const instance = getSupabaseAdmin();
+    const value = Reflect.get(instance, prop, receiver) as unknown;
+    return typeof value === 'function'
+      ? (value as (...args: unknown[]) => unknown).bind(instance)
+      : value;
+  },
 });
