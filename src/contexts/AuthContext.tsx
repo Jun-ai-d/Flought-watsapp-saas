@@ -10,7 +10,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { requireSupabase } from '../lib/supabase';
 
 const ACTIVE_TENANT_KEY = 'flought_active_tenant_id';
 
@@ -75,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchTenantContext = async (userId: string) => {
+    const supabase = requireSupabase();
     const { data, error } = await supabase
       .from('tenant_users')
       .select(
@@ -120,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    const supabase = requireSupabase();
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
@@ -150,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await requireSupabase().auth.signOut();
   };
 
   return (

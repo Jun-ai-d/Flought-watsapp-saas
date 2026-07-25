@@ -21,6 +21,9 @@ COPY index.html vite.config.ts tsconfig*.json ./
 COPY src ./src
 COPY public ./public
 
+RUN test -n "$VITE_SUPABASE_URL" -a -n "$VITE_SUPABASE_ANON_KEY" -a -n "$VITE_API_URL" || \
+  (echo "ERROR: Set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and VITE_API_URL as Coolify build args" >&2; exit 1)
+
 RUN npm run build
 
 FROM nginx:1.27-alpine
