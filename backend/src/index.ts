@@ -127,19 +127,32 @@ import { initOrderSyncWorker } from './services/ecommerce/orderSyncWorker';
 import { initSLAWorker } from './services/automation/slaWorker';
 import { initKbIngestWorker } from './services/kb/ingestWorker';
 
-app.listen(Number(PORT), '0.0.0.0', async () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`🚀 Backend server running on http://0.0.0.0:${PORT}`);
-  
-  try {
-    await initJobQueue();
-    await initBroadcasterWorkers();
-    await initCampaignWorker();
-    initBroadcastWorkers();
-    initCartRecoveryWorker();
-    initOrderSyncWorker();
-    await initSLAWorker();
-    await initKbIngestWorker();
-  } catch (error) {
-    console.error('Failed to initialize background job workers', { error });
-  }
+
+  void (async () => {
+    const queueReady = await initJobQueue();
+
+    try {
+      await initCampaignWorker();
+    } catch (error) {
+      console.error('Failed to initialize campaign worker', { error });
+    }
+
+    if (!queueReady) {
+      console.warn('Skipping pg-boss workers — job queue unavailable');
+      return;
+    }
+
+    try {
+      await initBroadcasterWorkers();
+      initBroadcastWorkers();
+      initCartRecoveryWorker();
+      initOrderSyncWorker();
+      await initSLAWorker();
+      await initKbIngestWorker();
+    } catch (error) {
+      console.error('Failed to initialize background job workers', { error });
+    }
+  })();
 });

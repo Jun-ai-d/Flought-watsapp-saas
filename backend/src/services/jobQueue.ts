@@ -10,27 +10,57 @@ if (!process.env.DATABASE_URL) {
   dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 }
 
-const dbUrl = process.env.DATABASE_URL;
+let bossInstance: PgBoss | null = null;
+let jobQueueReady = false;
 
-if (!dbUrl) {
-  throw new Error('DATABASE_URL is missing in environment variables');
+function getBossInstance(): PgBoss | null {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    return null;
+  }
+
+  if (!bossInstance) {
+    bossInstance = new PgBoss(dbUrl);
+    bossInstance.on('error', (error) => {
+      console.error('pg-boss error:', { error });
+    });
+  }
+
+  return bossInstance;
 }
 
-export const boss = new PgBoss(dbUrl);
+export function isJobQueueReady(): boolean {
+  return jobQueueReady;
+}
 
-boss.on('error', error => {
-  console.error('pg-boss error:', { error });
+/** Lazy proxy so route imports do not crash when DATABASE_URL is unset. */
+export const boss = new Proxy({} as PgBoss, {
+  get(_target, prop) {
+    const instance = getBossInstance();
+    if (!instance) {
+      throw new Error('Job queue unavailable: DATABASE_URL is not configured');
+    }
+    const value = Reflect.get(instance, prop, instance) as unknown;
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
 });
 
-export const initJobQueue = async () => {
+export const initJobQueue = async (): Promise<boolean> => {
+  const instance = getBossInstance();
+  if (!instance) {
+    console.error('DATABASE_URL is missing — pg-boss job queue disabled');
+    return false;
+  }
+
   try {
-    await boss.start();
+    await instance.start();
+    jobQueueReady = true;
     console.log('pg-boss initialized and started successfully');
     
     // Schedule the stale conversation sweeper to run every 10 minutes
-    await boss.schedule('auto-resolve-stale', '*/10 * * * *');
+    await instance.schedule('auto-resolve-stale', '*/10 * * * *');
     
-    boss.work('auto-resolve-stale', async () => {
+    instance.work('auto-resolve-stale', async () => {
       console.log('[Cron] Running auto-resolve for stale conversations...');
       const { supabaseAdmin } = require('./../lib/supabase');
       const { generateConversationSummary } = require('./llm/generator');
@@ -146,9 +176,11 @@ export const initJobQueue = async () => {
       }
     });
     
+    return true;
   } catch (error) {
     console.error('Failed to start pg-boss', { error });
-    throw error;
+    jobQueueReady = false;
+    return false;
   }
 };
 
