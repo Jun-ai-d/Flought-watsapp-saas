@@ -24,7 +24,37 @@
     </noscript>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-fallback" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;font-family:system-ui,sans-serif;background:#f9fafb;color:#111827;text-align:center">
+        <div>
+          <p style="margin:0;font-size:1.125rem;font-weight:600">Loading Flought…</p>
+          <p style="margin:0.75rem 0 0;font-size:0.875rem;color:#6b7280">If this stays blank, open DevTools → Network and check <code>/assets/*.js</code> responses.</p>
+        </div>
+      </div>
+    </div>
+    <noscript>
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;font-family:system-ui,sans-serif;background:#fef2f2;color:#991b1b">
+        JavaScript is required to run Flought.
+      </div>
+    </noscript>
+    <script>
+      window.addEventListener('error', function (event) {
+        var el = document.getElementById('boot-fallback');
+        if (!el) return;
+        el.innerHTML =
+          '<div><p style="margin:0;font-size:1.125rem;font-weight:600;color:#991b1b">Failed to load the app</p>' +
+          '<p style="margin:0.75rem 0 0;font-size:0.875rem;color:#6b7280">' +
+          (event.message || 'Script error') +
+          '. Rebuild the frontend in Coolify and confirm the domain targets container port <strong>80</strong>.</p></div>';
+      });
+      window.setTimeout(function () {
+        var fallback = document.getElementById('boot-fallback');
+        if (!fallback) return;
+        fallback.innerHTML =
+          '<div><p style="margin:0;font-size:1.125rem;font-weight:600;color:#991b1b">App did not start</p>' +
+          '<p style="margin:0.75rem 0 0;font-size:0.875rem;color:#6b7280">Usually a missing <code>/assets/*.js</code> file (redeploy with rebuild) or wrong Coolify port (use <strong>80</strong>, not 8080).</p></div>';
+      }, 10000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

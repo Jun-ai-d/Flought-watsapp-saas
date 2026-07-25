@@ -1,10 +1,7 @@
-const missingVars = [
-  !import.meta.env.VITE_SUPABASE_URL?.trim() && 'VITE_SUPABASE_URL',
-  !import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() && 'VITE_SUPABASE_ANON_KEY',
-  !import.meta.env.VITE_API_URL?.trim() && 'VITE_API_URL',
-].filter(Boolean) as string[];
+import { getMissingViteEnvVars } from '../lib/env';
 
 export default function ConfigError() {
+  const missingVars = getMissingViteEnvVars();
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="max-w-lg rounded-xl border border-red-200 bg-white p-8 shadow-sm">
