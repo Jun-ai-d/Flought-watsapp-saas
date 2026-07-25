@@ -22,7 +22,13 @@ COPY src ./src
 COPY public ./public
 
 RUN test -n "$VITE_SUPABASE_URL" -a -n "$VITE_SUPABASE_ANON_KEY" -a -n "$VITE_API_URL" || \
-  (echo "ERROR: Set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and VITE_API_URL as Coolify build args" >&2; exit 1)
+  (echo "ERROR: Set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and VITE_API_URL as Coolify build args (Available at Buildtime)" >&2; exit 1)
+
+RUN echo "$VITE_SUPABASE_URL" | grep -Eq '^[[:space:]]*https?://[^[:space:]]+' || \
+  (echo "ERROR: VITE_SUPABASE_URL must be a valid HTTP/HTTPS URL, e.g. https://abcdefgh.supabase.co (got: $VITE_SUPABASE_URL)" >&2; exit 1)
+
+RUN echo "$VITE_API_URL" | grep -Eq '^[[:space:]]*https?://[^[:space:]]+' || \
+  (echo "ERROR: VITE_API_URL must be a valid HTTP/HTTPS URL, e.g. https://api.your-domain.com (got: $VITE_API_URL)" >&2; exit 1)
 
 RUN npm run build
 

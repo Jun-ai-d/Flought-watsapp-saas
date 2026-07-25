@@ -1,13 +1,11 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/supabase';
+import { getSupabaseAnonKey, getSupabaseUrl, isFrontendConfigured } from './env';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? '';
+export const isSupabaseConfigured = isFrontendConfigured;
 
-export const isSupabaseConfigured = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
-
-export const supabase: SupabaseClient<Database> | null = isSupabaseConfigured
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+export const supabase: SupabaseClient<Database> | null = isFrontendConfigured
+  ? createClient<Database>(getSupabaseUrl(), getSupabaseAnonKey())
   : null;
 
 export function requireSupabase(): SupabaseClient<Database> {
