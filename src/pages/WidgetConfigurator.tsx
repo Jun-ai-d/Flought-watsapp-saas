@@ -20,27 +20,25 @@ export default function WidgetConfigurator() {
     queryFn: async (): Promise<WidgetConfig | null> => {
       if (!tenant) return null;
 
-      const [{ data: tokenRow, error: tokenError }, { data: tenantRow, error: tenantError }] =
-        await Promise.all([
-          supabase
-            .from('widget_tokens')
-            .select('token')
-            .eq('tenant_id', tenant.id)
-            .eq('is_active', true)
-            .maybeSingle(),
-          supabase
-            .from('tenants')
-            .select('business_name')
-            .eq('id', tenant.id)
-            .single(),
-        ]);
+      const { data: tokenRow, error: tokenError } = await supabase
+        .from('widget_tokens')
+        .select('token')
+        .eq('tenant_id', tenant.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      const { data: tenantRow, error: tenantError } = await supabase
+        .from('tenants')
+        .select('business_name')
+        .eq('id', tenant.id)
+        .single();
 
       if (tokenError) throw tokenError;
       if (tenantError) throw tenantError;
 
       return {
-        widget_token: tokenRow?.token ?? null,
-        business_name: tenantRow.business_name,
+        widget_token: (tokenRow as { token: string } | null)?.token ?? null,
+        business_name: (tenantRow as { business_name: string } | null)?.business_name ?? '',
       };
     },
     enabled: !!tenant?.id,
@@ -50,7 +48,7 @@ export default function WidgetConfigurator() {
     mutationFn: async () => {
       const { data: newToken, error } = await supabase.rpc('rotate_widget_token', {
         p_tenant_id: tenant!.id,
-      });
+      } as never);
       if (error) throw error;
       return newToken as string;
     },

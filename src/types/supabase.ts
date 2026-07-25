@@ -379,6 +379,29 @@ export interface Database {
           created_at?: string
         }
       }
+      widget_tokens: {
+        Row: {
+          id: string
+          tenant_id: string
+          token: string
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          token: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          token?: string
+          is_active?: boolean
+          created_at?: string
+        }
+      }
       audit_log: {
         Row: {
           id: string
@@ -438,6 +461,12 @@ export interface Database {
           check_tenant_id: string
         }
         Returns: boolean
+      }
+      rotate_widget_token: {
+        Args: {
+          p_tenant_id: string
+        }
+        Returns: string
       }
     }
     Enums: {

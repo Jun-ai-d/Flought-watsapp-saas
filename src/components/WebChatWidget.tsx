@@ -44,7 +44,9 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
         .maybeSingle();
-      if (!cancelled) setResolvedToken(data?.token ?? null);
+      if (!cancelled) {
+        setResolvedToken((data as { token: string } | null)?.token ?? null);
+      }
     })();
 
     return () => {
