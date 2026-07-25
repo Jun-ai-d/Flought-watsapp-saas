@@ -1,6 +1,9 @@
 /**
  * Bot Flow Evaluator Engine
  * Parses JSON AST from the drag-and-drop canvas and executes rules.
+ *
+ * UNUSED: The live WhatsApp pipeline uses flowMatcher.ts + bot_flows (keyword → message).
+ * bot_flow_graphs and this engine are reserved for future CRM-style visual automation.
  */
 
 export interface FlowNode {

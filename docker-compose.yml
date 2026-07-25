@@ -19,6 +19,7 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     cpus: "1.5"
+    # Single replica recommended: pipeline uses in-memory conversationLocks.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:4000/health"]
       interval: 30s

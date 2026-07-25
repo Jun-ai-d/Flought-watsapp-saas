@@ -115,7 +115,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
   }
 
   const signature = req.headers['x-razorpay-signature'] as string;
-  const body = (req as any).rawBody || JSON.stringify(req.body);
+  const rawBody = (req as { rawBody?: Buffer | string }).rawBody;
+  const body = rawBody
+    ? (typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8'))
+    : JSON.stringify(req.body);
 
   if (!signature) {
     return res.status(400).send('Missing signature');

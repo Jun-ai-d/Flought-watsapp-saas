@@ -121,6 +121,8 @@ Related RAG docs: [2026-07-25-rag-implementation.md](./docs/superpowers/plans/20
 
 ## Local development
 
+**Scaling note:** The backend uses in-process locks (`conversationLocks` in the automation pipeline) and pg-boss workers in a single Node process. Run **one backend replica** per deployment unless you externalize locks/queues. Docker Compose defaults to a single `backend` service for this reason.
+
 ```bash
 # Frontend (repo root) — default Vite port 5173
 npm install
